@@ -490,7 +490,6 @@ class MainWindow(QWidget):
     def _on_track_changed(self, track: Track) -> None:
         """Update all UI when track changes."""
         self.player_bar.set_playing(True)
-        self.player_engine.enable_pcm_capture()
         self.audio_worker.start()
         self._lyrics_timer.start()
 

@@ -146,17 +146,12 @@ class PlayerEngine:
 
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 
-    def enable_pcm_capture(self) -> None:
-        """Attach VLC audio callbacks for PCM capture (call once after first media loaded)."""
-        if not self._pcm._format_set:
-            self._pcm.attach_to_player(self._player)
-        self._pcm.start()
-
-    def disable_pcm_capture(self) -> None:
-        self._pcm.stop()
-
     def pcm_data(self, n_samples: int = 1024) -> np.ndarray | None:
-        """Return PCM samples for FFT processing. Called from AudioWorker."""
+        """Return PCM samples for FFT processing. Called from AudioWorker.
+
+        ponytail: Real PCM capture via PulseAudio monitor source — currently
+        returns None so visualizer shows flat bars. Add in next iteration.
+        """
         return self._pcm.read_fft(n_samples)
 
     # ── Track info ────────────────────────────────────────────────────
