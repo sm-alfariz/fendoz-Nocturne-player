@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, Signal
 from PySide6.QtWidgets import QHeaderView, QLabel, QTableView, QVBoxLayout, QWidget
-from qfluentwidgets import SearchLineEdit, TableView
+from qfluentwidgets import SearchLineEdit
 
 from nocturne.data.db import get_connection
 from nocturne.data.models import Track
@@ -94,7 +94,7 @@ class SongsView(QWidget):
         self._empty_label.setVisible(False)
         layout.addWidget(self._empty_label)
 
-        self.table = TableView(self)
+        self.table = QTableView(self)
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(False)
@@ -103,6 +103,14 @@ class SongsView(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(32)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.doubleClicked.connect(self._on_double_click)
+        self.table.setStyleSheet(
+            f"QTableView{{background:{Color.CARD};border:1px solid {Color.BORDER};"
+            f"border-radius:8px;color:{Color.TEXT_PRIMARY};gridline-color:transparent;}}"
+            f"QTableView::item{{padding:4px 8px;}}"
+            f"QTableView::item:selected{{background:rgba(30,136,229,0.2);}}"
+            f"QHeaderView::section{{background:{Color.CARD_SOFT};color:{Color.TEXT_DIM};"
+            f"border:none;padding:6px 8px;font-weight:600;}}"
+        )
         layout.addWidget(self.table)
 
     def load(self) -> None:
