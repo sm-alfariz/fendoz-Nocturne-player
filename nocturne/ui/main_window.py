@@ -446,8 +446,11 @@ class MainWindow(QWidget):
 
                 pl_layout.addWidget(item_w)
 
-            # Wrap in a container button for NavigationInterface
-            pl_container = QPushButton()
+            # Wrap in a container for NavigationInterface
+            class _NavContainer(QPushButton):
+                def setSelected(self, selected):
+                    pass
+            pl_container = _NavContainer()
             pl_container.setFlat(True)
             pl_container.setStyleSheet("background:transparent;border:none;")
             pl_layout_container = QVBoxLayout(pl_container)
