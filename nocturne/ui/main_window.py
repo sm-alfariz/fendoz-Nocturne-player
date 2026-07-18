@@ -257,6 +257,9 @@ class SidebarWidget(QWidget):
             self.setFixedWidth(68)
         else:
             self.setFixedWidth(220)
+            self.setStyleSheet(
+                f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
+            )
 
 
 class MainWindow(QWidget):
