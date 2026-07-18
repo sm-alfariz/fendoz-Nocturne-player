@@ -165,7 +165,7 @@ class SettingInterface(ScrollArea):
             FIF.VIEW,
             self.tr("Reduce motion"),
             self.tr("Reduce visualiser complexity and animation effects"),
-            cfg.confirmExit,  # placeholder toggle
+            cfg.reduceMotion,
             self.accessGroup,
         )
 
@@ -288,6 +288,7 @@ class SettingInterface(ScrollArea):
         self.feedbackCard.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
         )
+        self.reduceMotionCard.checkedChanged.connect(signalBus.reduce_motion_changed)
         self.scanCard.clicked.connect(signalBus.scan_started.emit)
 
     def _add_folder(self) -> None:

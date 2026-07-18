@@ -62,6 +62,12 @@ class ArtistsView(QWidget):
             "WHERE artist IS NOT NULL AND artist != '' "
             "GROUP BY artist ORDER BY artist"
         ).fetchall()
+        if not rows:
+            label = QLabel("Belum ada artis.\nScan folder musik di Settings.")
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet("color:#7C8AA5;font-size:16px;padding:60px;")
+            self.grid_layout.addWidget(label)
+            return
         for row in rows:
             card = ArtistCard(row[0], row[1], self.grid)
             self.grid_layout.addWidget(card)

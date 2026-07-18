@@ -17,6 +17,7 @@ class SignalBus(QObject):
     folder_added = Signal(str)
     scan_started = Signal()
     play_toggled = Signal(bool)
+    reduce_motion_changed = Signal(bool)
 
 
 signalBus = SignalBus()

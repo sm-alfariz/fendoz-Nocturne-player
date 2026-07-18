@@ -78,6 +78,9 @@ class Config(QConfig):
     autoSaveNote = ConfigItem("Custom", "AutoSaveNote", False, BoolValidator())
     confirmExit = ConfigItem("Custom", "ConfirmExit", False, BoolValidator())
 
+    # Accessibility
+    reduceMotion = ConfigItem("Accessibility", "ReduceMotion", False, BoolValidator())
+
     # Online / Privacy (Fase 2)
     onlineEnabled = ConfigItem("Online", "Enabled", False, BoolValidator())
     cacheOffline = ConfigItem("Online", "CacheOffline", False, BoolValidator())

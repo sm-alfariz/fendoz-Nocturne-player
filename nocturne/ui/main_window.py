@@ -56,6 +56,7 @@ from nocturne.ui.views.setting_interface import SettingInterface
 from nocturne.ui.views.songs_view import SongsView
 from nocturne.ui.views.artists_view import ArtistsView
 from nocturne.ui.views.albums_view import AlbumsView
+from nocturne.ui.views.playlist_view import PlaylistView
 from nocturne.ui.views.equalizer_view import EqualizerView
 from nocturne.ui.theme.tokens import Color, Fonts, FontWeights
 from nocturne.common.signal_bus import signalBus
@@ -299,6 +300,9 @@ class MainWindow(QWidget):
                 w.scan_requested.connect(self._scan_library)
             elif key == "equalizer":
                 w = EqualizerView(self.equalizer, self)
+            elif key == "playlist":
+                w = PlaylistView(self)
+                w.track_activated.connect(self._play_track)
             else:
                 w = BlankWidget(label, self)
             self._pages[key] = w
@@ -327,13 +331,21 @@ class MainWindow(QWidget):
         self._lyrics_timer.setInterval(300)
         self._lyrics_timer.timeout.connect(self._tick_lyrics)
 
+        # ── Top bar connections ────────────────────────────────────────
+        self.top_bar.settings_btn.clicked.connect(lambda: self.show_view("settings"))
+        self.top_bar.search.textChanged.connect(self._on_search)
+
         # ── Signal bus connections ────────────────────────────────────
         signalBus.folder_added.connect(self._on_folder_added)
         signalBus.scan_started.connect(self._scan_library)
+        signalBus.reduce_motion_changed.connect(self.stage.ring.set_reduce_motion)
 
         # ── Audio worker → visualizer + spectrum ──────────────────────
         self.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
         self.audio_worker.spectrum_ready.connect(self.stage.spectrum.set_spectrum)
+
+        # ── Resume playback on startup ────────────────────────────────
+        self._resume_playback()
 
     def _build_layout(self) -> None:
         vroot = QVBoxLayout(self)
@@ -453,9 +465,32 @@ class MainWindow(QWidget):
         self._current_track = tracks[0]
         self._on_track_changed(tracks[0])
 
+    # ── Resume ───────────────────────────────────────────────────────
+
+    def _resume_playback(self) -> None:
+        """Restore last playback position on startup (FR-1.5)."""
+        state = self.player_engine.load_state()
+        if not state or not state.get("path"):
+            return
+        path = state["path"]
+        if not Path(path).exists():
+            return
+        conn = get_connection()
+        row = conn.execute("SELECT * FROM tracks WHERE path = ?", (path,)).fetchone()
+        if not row:
+            return
+        track = Track.from_row(row)
+        self._current_track = track
+        self.player_engine.load_single(track.path)
+        pos = state.get("position_ms", 0)
+        if pos > 0:
+            QTimer.singleShot(500, lambda: self.player_engine.seek(pos))
+        self._on_track_changed(track)
+
     def _on_track_changed(self, track: Track) -> None:
         """Update all UI when track changes."""
         self.player_bar.set_playing(True)
+        self.player_engine.enable_pcm_capture()
         self.audio_worker.start()
         self._lyrics_timer.start()
 
@@ -468,6 +503,11 @@ class MainWindow(QWidget):
         # Stage
         self.stage.track_title.setText(track.title)
         self.stage.track_artist.setText(track.artist or "")
+
+        # Highlight in songs view
+        songs = self._pages.get("songs")
+        if hasattr(songs, "highlight_track"):
+            songs.highlight_track(track.id)
 
         # Album artwork
         if track.album_id:
@@ -522,6 +562,12 @@ class MainWindow(QWidget):
         if self.player_engine.is_playing:
             self.lyrics_panel.highlight_line(self.player_engine.position_ms)
 
+    def _on_search(self, text: str) -> None:
+        """Filter songs/artists/albums views from top-bar search."""
+        songs = self._pages.get("songs")
+        if hasattr(songs, "_filter"):
+            songs._filter(text)
+
     # ── Library scanning ──────────────────────────────────────────────
 
     def _scan_library(self) -> None:
@@ -548,6 +594,10 @@ class MainWindow(QWidget):
         albums_view = self._pages.get("albums")
         if isinstance(albums_view, AlbumsView):
             albums_view.load()
+
+        playlist_view = self._pages.get("playlist")
+        if hasattr(playlist_view, "load"):
+            playlist_view.load()
 
     def add_music_folder(self, folder: str) -> None:
         """Add a folder to the scan list."""

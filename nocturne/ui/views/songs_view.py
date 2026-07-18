@@ -11,6 +11,7 @@ from qfluentwidgets import SearchLineEdit, TableView
 
 from nocturne.data.db import get_connection
 from nocturne.data.models import Track
+from nocturne.ui.theme.tokens import Color
 
 
 class SongTableModel(QAbstractTableModel):
@@ -20,7 +21,7 @@ class SongTableModel(QAbstractTableModel):
         super().__init__(parent)
         self._tracks: list[Track] = []
 
-    def load(self) -> None:
+    def load(self) -> int:
         self.beginResetModel()
         conn = get_connection()
         rows = conn.execute(
@@ -30,6 +31,7 @@ class SongTableModel(QAbstractTableModel):
         ).fetchall()
         self._tracks = [Track.from_row(r) for r in rows]
         self.endResetModel()
+        return len(self._tracks)
 
     def rowCount(self, parent=None) -> int:
         return len(self._tracks)
@@ -92,10 +94,32 @@ class SongsView(QWidget):
         layout.addWidget(self.table)
 
     def load(self) -> None:
-        self.model.load()
+        rows = self.model.load()
+        self._update_empty_state(rows == 0)
+
+    def _update_empty_state(self, empty: bool) -> None:
+        self.table.setVisible(not empty)
+        if empty and not hasattr(self, '_empty_label'):
+            self._empty_label = QLabel("Belum ada lagu.\nPilih folder musik di Settings untuk memulai.")
+            self._empty_label.setAlignment(Qt.AlignCenter)
+            self._empty_label.setStyleSheet(f"color:{Color.TEXT_DIM};font-size:16px;padding:60px;")
+            self.layout().addWidget(self._empty_label)
+        if self._empty_label:
+            self._empty_label.setVisible(empty)
 
     def _filter(self, text: str) -> None:
         self.proxy.setFilterFixedString(text)
+
+    def highlight_track(self, track_id: int) -> None:
+        """Highlight the row matching track_id."""
+        for row in range(self.model.rowCount()):
+            t = self.model.track_at(row)
+            if t and t.id == track_id:
+                # Select row in proxy
+                src_idx = self.model.index(row, 0)
+                proxy_idx = self.proxy.mapFromSource(src_idx)
+                self.table.selectRow(proxy_idx.row())
+                return
 
     def _on_double_click(self, index) -> None:
         source_index = self.proxy.mapToSource(index)

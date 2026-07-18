@@ -79,6 +79,12 @@ class AlbumsView(QWidget):
             "FROM albums a LEFT JOIN tracks t ON t.album_id = a.id "
             "GROUP BY a.id ORDER BY a.title"
         ).fetchall()
+        if not rows:
+            label = QLabel("Belum ada album.\nScan folder musik di Settings.")
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet("color:#7C8AA5;font-size:16px;padding:60px;")
+            self.grid_layout.addWidget(label)
+            return
         for r in rows:
             card = AlbumCard(r[0], r[1], r[2], r[3], r[4], self.grid)
             self.grid_layout.addWidget(card)

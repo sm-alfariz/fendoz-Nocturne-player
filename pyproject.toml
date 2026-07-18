@@ -17,6 +17,7 @@ dependencies = [
   "python-vlc>=3.0",
   "ruff>=0.15.20",
   "scipy>=1.18.0",
+  "sounddevice>=0.5.1",
 ]
 
 [dependency-groups]

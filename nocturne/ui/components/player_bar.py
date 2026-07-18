@@ -146,6 +146,8 @@ class PlayerBar(QWidget):
         btns.setAlignment(Qt.AlignCenter)
 
         self.shuffle_btn = _IconButton(FIF.ARROW_DOWN.icon(), 28)
+        self.shuffle_btn.setCheckable(True)
+        self.shuffle_btn.clicked.connect(self._on_shuffle)
         btns.addWidget(self.shuffle_btn)
 
         self.prev_btn = _IconButton(FIF.SKIP_BACK.icon())
@@ -161,6 +163,7 @@ class PlayerBar(QWidget):
         btns.addWidget(self.next_btn)
 
         self.repeat_btn = _IconButton(FIF.SYNC.icon(), 28)
+        self.repeat_btn.clicked.connect(self._on_repeat)
         btns.addWidget(self.repeat_btn)
         ctr.addLayout(btns)
 
@@ -289,6 +292,23 @@ class PlayerBar(QWidget):
     def _on_volume(self, val: int) -> None:
         if self._engine:
             self._engine.volume = val
+
+    def _on_shuffle(self) -> None:
+        if self._engine:
+            enabled = self._engine.toggle_shuffle()
+            self.shuffle_btn.setChecked(enabled)
+
+    def _on_repeat(self) -> None:
+        if self._engine:
+            mode = self._engine.cycle_repeat()
+            icons = {"off": FIF.SYNC.icon(), "one": FIF.SYNC.icon(), "all": FIF.SYNC.icon()}
+            self.repeat_btn.setIcon(icons.get(mode, FIF.SYNC.icon()))
+            # Visual indicator: accent when active
+            accent = "#4FC3F7" if mode != "off" else "inherit"
+            self.repeat_btn.setStyleSheet(
+                f"QPushButton{{background:transparent;border:none;color:{accent};}}"
+                f"QPushButton:hover{{color:#4FC3F7;}}"
+            )
 
     def _poll_position(self) -> None:
         if self._engine and self._engine.is_playing:

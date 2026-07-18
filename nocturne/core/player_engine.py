@@ -16,6 +16,7 @@ from typing import Optional
 import vlc
 
 from nocturne.data.db import get_db_path
+from nocturne.core.pcm_capture import PCMCapture
 
 
 class PlayerEngine:
@@ -38,6 +39,9 @@ class PlayerEngine:
 
         # Callbacks
         self._on_track_change = None
+
+        # PCM capture for FFT visualizer
+        self._pcm = PCMCapture()
 
         # Repeat / shuffle state
         self._repeat_mode = "off"  # "off" | "one" | "all"
@@ -142,16 +146,18 @@ class PlayerEngine:
 
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 
-    def pcm_data(self, n_samples: int = 1024) -> list[float] | None:
-        """Return the latest PCM samples for FFT processing.
+    def enable_pcm_capture(self) -> None:
+        """Attach VLC audio callbacks for PCM capture (call once after first media loaded)."""
+        if not self._pcm._format_set:
+            self._pcm.attach_to_player(self._player)
+        self._pcm.start()
 
-        Returns None if no audio is playing.  Called from AudioWorker.
-        """
-        # ponytail: libVLC doesn't expose raw PCM access directly.
-        # This is a stub — real implementation will use VLC's audio
-        # output callbacks or a separate audio capture stream.
-        # Add when FFT visualizer is implemented.
-        return None
+    def disable_pcm_capture(self) -> None:
+        self._pcm.stop()
+
+    def pcm_data(self, n_samples: int = 1024) -> np.ndarray | None:
+        """Return PCM samples for FFT processing. Called from AudioWorker."""
+        return self._pcm.read_fft(n_samples)
 
     # ── Track info ────────────────────────────────────────────────────
 
