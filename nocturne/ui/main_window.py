@@ -446,9 +446,17 @@ class MainWindow(QWidget):
 
                 pl_layout.addWidget(item_w)
 
+            # Wrap in a container button for NavigationInterface
+            pl_container = QPushButton()
+            pl_container.setFlat(True)
+            pl_container.setStyleSheet("background:transparent;border:none;")
+            pl_layout_container = QVBoxLayout(pl_container)
+            pl_layout_container.setContentsMargins(0, 0, 0, 0)
+            pl_layout_container.addWidget(pl_section)
+
             nav.addWidget(
                 routeKey="playlist_section",
-                widget=pl_section,
+                widget=pl_container,
                 onClick=lambda: None,
                 position=NavigationItemPosition.SCROLL,
             )
