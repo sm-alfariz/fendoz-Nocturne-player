@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -122,6 +122,7 @@ class TopBar(QWidget):
         self.search = QLineEdit()
         self.search.setPlaceholderText("Cari lagu, artis, atau album...")
         self.search.setFixedWidth(420)
+        self.search.addAction(FIF.SEARCH.icon(), QLineEdit.LeadingPosition)
         self.search.setStyleSheet(
             f"background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
             f"border-radius:12px;padding:9px 14px 9px 36px;"
@@ -269,7 +270,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Nocturne")
         self.setMinimumSize(1100, 720)
         self.resize(1280, 800)
-        self.setStyleSheet(f"background:{Color.BACKGROUND_DEEP};")
+        self.setStyleSheet(f"background:transparent;")
 
         # ── Core engine ───────────────────────────────────────────────
         self.player_engine = PlayerEngine()
@@ -662,6 +663,24 @@ class MainWindow(QWidget):
         path = Path(folder)
         if path.is_dir() and path not in self._music_folders:
             self._music_folders.append(path)
+
+    def paintEvent(self, event) -> None:
+        """Draw radial gradient glows matching mockup atmosphere."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        w, h = self.width(), self.height()
+
+        # Top-left cyan glow
+        g1 = QRadialGradient(0, 0, max(w, h) * 0.7)
+        g1.setColorAt(0, QColor(30, 136, 229, 40))
+        g1.setColorAt(1, QColor(10, 15, 30, 0))
+        painter.fillRect(self.rect(), g1)
+
+        # Bottom-right blue glow
+        g2 = QRadialGradient(w, h, max(w, h) * 0.7)
+        g2.setColorAt(0, QColor(79, 195, 247, 25))
+        g2.setColorAt(1, QColor(10, 15, 30, 0))
+        painter.fillRect(self.rect(), g2)
 
 
 if __name__ == "__main__":

@@ -121,6 +121,12 @@ class RingVisualizer(QWidget):
         painter.drawEllipse(art_rect)
 
         if self._artwork:
+            # Rotate album art continuously (22s revolution at 30fps)
+            rotation = (self._frame * 0.545) % 360
+            painter.save()
+            painter.translate(cx, cy)
+            painter.rotate(rotation)
+            painter.translate(-cx, -cy)
             pix = self._artwork.scaled(
                 art_size, art_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
@@ -128,6 +134,7 @@ class RingVisualizer(QWidget):
             painter.setClipRect(art_rect.toRect())
             painter.drawPixmap(int(art_rect.x()), int(art_rect.y()), pix)
             painter.setClipPath(clip_path)
+            painter.restore()
         else:
             grad = QConicalGradient(cx, cy, 0)
             grad.setColorAt(0, QColor("#2E4A7D"))
@@ -179,11 +186,14 @@ class SpectrumBar(QWidget):
             mag = max(0.0, min(1.0, abs(float(mag))))
             bh = max(8, mag * h * 0.94)
             x = i * (bar_w + spacing)
-            radius = 2
-            painter.fillRect(
-                int(x), int(h - bh), int(bar_w), int(bh), QBrush(gradient)
+            painter.setBrush(QBrush(gradient))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(
+                int(x), int(h - bh), int(bar_w), int(bh), 4, 4
             )
-            painter.setBrush(QColor(30, 136, 229, 70))
-            painter.drawRoundedRect(int(x), int(h - bh), int(bar_w), int(bh), radius, radius)
+            painter.setBrush(QColor(30, 136, 229, 40))
+            painter.drawRect(
+                int(x), int(h - 2), int(bar_w), 2
+            )
 
         painter.end()

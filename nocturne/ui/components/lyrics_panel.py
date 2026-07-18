@@ -8,6 +8,7 @@ active line in gradient accent→primary text.
 
 from __future__ import annotations
 
+import math
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QLinearGradient, QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
@@ -23,28 +24,36 @@ class _SyncBadge(QLabel):
 
     def __init__(self, parent=None):
         super().__init__("SYNCED", parent)
-        self._dot_visible = True
+        self._pulse = 1.0
         self.setStyleSheet(
             f"color:{Color.ACCENT};font-size:10px;font-family:'{Fonts.MONO}';"
             f"background:rgba(79,195,247,0.1);border:1px solid {Color.BORDER};"
             f"padding:4px 8px;border-radius:8px;"
         )
         self._timer = QTimer(self)
-        self._timer.setInterval(1400)
-        self._timer.timeout.connect(self._toggle_dot)
+        self._timer.setInterval(50)
+        self._timer.timeout.connect(self._tick_pulse)
         self._timer.start()
 
-    def _toggle_dot(self):
-        self._dot_visible = not self._dot_visible
+    def _tick_pulse(self):
+        import time
+        self._pulse = 0.5 + 0.5 * math.sin(time.time() * 4.5)
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
-        if self._dot_visible:
-            painter.setBrush(QColor(Color.ACCENT))
-            painter.drawEllipse(8, self.height() // 2 - 3, 6, 6)
+        alpha = int(self._pulse * 255)
+        c = QColor(Color.ACCENT)
+        c.setAlpha(max(60, alpha))
+        painter.setBrush(c)
+        glow = QColor(Color.ACCENT)
+        glow.setAlpha(max(30, alpha // 3))
+        painter.setBrush(glow)
+        painter.drawEllipse(7, self.height() // 2 - 4, 8, 8)
+        painter.setBrush(c)
+        painter.drawEllipse(8, self.height() // 2 - 3, 6, 6)
 
 
 def _build_lyrics_header() -> QWidget:
@@ -103,6 +112,27 @@ class LyricsPanel(QScrollArea):
 
         # Header goes outside scroll area — handle via parent layout
         self._show_placeholder()
+
+    def paintEvent(self, event):
+        """Draw gradient fade at top and bottom of the lyrics viewport."""
+        super().paintEvent(event)
+        painter = QPainter(self.viewport())
+        painter.setRenderHint(QPainter.Antialiasing)
+        fade_height = 40
+        w = self.viewport().width()
+
+        # Top fade: transparent → bg
+        top_grad = QLinearGradient(0, 0, 0, fade_height)
+        top_grad.setColorAt(0, QColor(Color.BACKGROUND))
+        top_grad.setColorAt(1, QColor(Color.BACKGROUND, 0))
+        painter.fillRect(0, 0, w, fade_height, top_grad)
+
+        # Bottom fade: bg → transparent
+        vh = self.viewport().height()
+        bot_grad = QLinearGradient(0, vh - fade_height, 0, vh)
+        bot_grad.setColorAt(0, QColor(Color.BACKGROUND, 0))
+        bot_grad.setColorAt(1, QColor(Color.BACKGROUND))
+        painter.fillRect(0, vh - fade_height, w, fade_height, bot_grad)
 
     def _show_placeholder(self, msg: str = "Lirik tidak ditemukan\nuntuk lagu ini") -> None:
         self._clear_labels()

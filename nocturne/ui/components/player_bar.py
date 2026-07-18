@@ -102,7 +102,7 @@ class PlayerBar(QWidget):
         super().__init__(parent)
         self.setFixedHeight(72)
         self.setStyleSheet(
-            f"background:{Color.BACKGROUND_DEEP};"
+            f"background:rgba(10,15,30,0.85);"
             f"border-top:1px solid {Color.BORDER};"
         )
         self._engine: PlayerEngine | None = None
