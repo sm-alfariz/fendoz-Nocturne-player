@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, QSize, QTimer
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -49,7 +49,7 @@ import vlc
 from nocturne.config.config import ROOT, cfg
 from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.components.lyrics_panel import LyricsPanel
-from nocturne.ui.components.ring_visualizer import RingVisualizer
+from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
 from nocturne.ui.views.blank_widget import BlankWidget
 from nocturne.ui.views.home_interface import HomeInterface
 from nocturne.ui.views.setting_interface import SettingInterface
@@ -58,6 +58,7 @@ from nocturne.ui.views.artists_view import ArtistsView
 from nocturne.ui.views.albums_view import AlbumsView
 from nocturne.ui.views.equalizer_view import EqualizerView
 from nocturne.ui.theme.theme_manager import apply_theme
+from nocturne.ui.theme.tokens import Color, Fonts, FontWeights
 from nocturne.core.player_engine import PlayerEngine
 from nocturne.core.equalizer import Equalizer
 from nocturne.core.audio_worker import AudioWorker
@@ -67,70 +68,165 @@ from nocturne.data.models import Track
 from nocturne.data.library_scanner import LibraryScanner
 
 
+class LogoMark(QWidget):
+    """Gradient square with centre dot — mockup logo mark."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(30, 30)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        grad = QLinearGradient(0, 0, 30, 30)
+        grad.setColorAt(0, QColor(Color.PRIMARY))
+        grad.setColorAt(1, QColor(Color.ACCENT))
+        painter.setBrush(grad)
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(self.rect(), 9, 9)
+        # Shadow glow
+        shadow = QColor(79, 195, 247, 128)
+        pen = QPen(shadow, 2)
+        painter.setPen(pen)
+        painter.drawRoundedRect(self.rect(), 9, 9)
+        # Centre dot
+        painter.setBrush(QColor(Color.BACKGROUND))
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(10, 10, 10, 10)
+
+
 class TopBar(QWidget):
-    """Persistent top bar: logo, search, notification, settings, profile."""
+    """Persistent top bar: logo + search + icons (mockup style)."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setFixedHeight(48)
+        self.setFixedHeight(52)
+        self.setStyleSheet(
+            f"background:rgba(15,23,42,0.6);"
+            f"border-bottom:1px solid {Color.BORDER};"
+        )
+
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 4, 16, 4)
+        layout.setContentsMargins(24, 8, 24, 8)
+        layout.setSpacing(24)
 
-        self.logo = QLabel("Nocturne")
-        self.logo.setObjectName("topBarLogo")
-        layout.addWidget(self.logo)
+        # Logo
+        logo_row = QHBoxLayout()
+        logo_row.setSpacing(10)
+        logo_row.addWidget(LogoMark(self))
+        logo_text = QLabel("Nocturne")
+        logo_text.setStyleSheet(
+            f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.LOGO};"
+            f"font-size:18px;letter-spacing:0.5px;color:{Color.TEXT_PRIMARY};background:transparent;"
+        )
+        logo_row.addWidget(logo_text)
+        layout.addLayout(logo_row)
 
-        self.search = SearchLineEdit(self)
-        self.search.setPlaceholderText(self.tr("Search music, artists, albums…"))
-        self.search.setFixedWidth(320)
-        layout.addSpacing(24)
+        # Search (mockup style)
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Cari lagu, artis, atau album...")
+        self.search.setFixedWidth(420)
+        self.search.setStyleSheet(
+            f"background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
+            f"border-radius:12px;padding:9px 14px 9px 36px;"
+            f"color:{Color.TEXT_PRIMARY};font-size:13px;outline:none;"
+            f"selection-background-color:{Color.ACCENT};"
+        )
         layout.addWidget(self.search)
 
         layout.addStretch()
 
+        # Notification icon
         self.notif_btn = QPushButton()
         self.notif_btn.setIcon(FIF.RINGER.icon())
-        self.notif_btn.setFixedSize(32, 32)
+        self.notif_btn.setFixedSize(36, 36)
         self.notif_btn.setFlat(True)
+        self.notif_btn.setStyleSheet(
+            f"QPushButton{{background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
+            f"border-radius:11px;color:{Color.TEXT_DIM};}}"
+            f"QPushButton:hover{{color:{Color.ACCENT};border-color:{Color.ACCENT};}}"
+        )
         layout.addWidget(self.notif_btn)
 
+        # Settings icon
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(FIF.SETTING.icon())
-        self.settings_btn.setFixedSize(32, 32)
+        self.settings_btn.setFixedSize(36, 36)
         self.settings_btn.setFlat(True)
+        self.settings_btn.setStyleSheet(self.notif_btn.styleSheet())
         layout.addWidget(self.settings_btn)
 
-        self.profile = NavigationAvatarWidget("User", os.path.join(ROOT, "resource", "img", "icon.png"))
-        layout.addWidget(self.profile)
+        # Avatar
+        self.avatar = QLabel("EF")
+        self.avatar.setFixedSize(36, 36)
+        self.avatar.setStyleSheet(
+            f"background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            f"stop:0 #3B4A6B,stop:1 #1E293B);"
+            f"border:1px solid {Color.BORDER};border-radius:11px;"
+            f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.DISPLAY_BOLD};"
+            f"font-size:13px;color:{Color.ACCENT};"
+        )
+        self.avatar.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.avatar)
 
 
 class StageWidget(QWidget):
-    """Center column: album art + ring visualizer + track info."""
+    """Center column: album art + ring + track info + spectrum bar (mockup)."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins(32, 16, 32, 16)
+        layout.setContentsMargins(32, 28, 32, 16)
+        layout.setSpacing(0)
 
-        # Ring visualizer wraps album art
+        # Art + Ring wrapper
         self.ring = RingVisualizer(self)
         self.ring.setFixedSize(280, 280)
+        layout.addSpacing(6)
         layout.addWidget(self.ring, 0, Qt.AlignCenter)
 
-        # Track metadata
+        # Track meta
         self.track_title = QLabel("")
-        self.track_title.setStyleSheet("font-size: 21px; font-weight: 700; font-family: 'Sora'; color: #E2E8F0;")
+        self.track_title.setStyleSheet(
+            f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.DISPLAY_BOLD};"
+            f"font-size:21px;letter-spacing:.2px;color:{Color.TEXT_PRIMARY};"
+        )
         self.track_title.setAlignment(Qt.AlignCenter)
-        layout.addSpacing(16)
+        layout.addSpacing(24)
         layout.addWidget(self.track_title)
 
         self.track_artist = QLabel("")
-        self.track_artist.setStyleSheet("font-size: 13px; color: #7C8AA5;")
+        self.track_artist.setStyleSheet(f"font-size:13px;color:{Color.TEXT_DIM};margin-top:5px;")
         self.track_artist.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.track_artist)
 
+        # Tags
+        self.tags = QWidget()
+        tl = QHBoxLayout(self.tags)
+        tl.setSpacing(8)
+        tl.setAlignment(Qt.AlignCenter)
+        self.tag_label = QLabel("")
+        self.tag_label.setStyleSheet(
+            f"font-family:'{Fonts.MONO}';font-size:10.5px;"
+            f"color:{Color.ACCENT};background:{Color.CARD_SOFT};"
+            f"border:1px solid {Color.BORDER};border-radius:20px;padding:4px 10px;"
+        )
+        tl.addWidget(self.tag_label)
+        layout.addSpacing(12)
+        layout.addWidget(self.tags)
+
+        # Spectrum bar
+        self.spectrum = SpectrumBar(self)
+        self.spectrum.setFixedHeight(96)
+        layout.addSpacing(30)
+        layout.addWidget(self.spectrum, 0, Qt.AlignCenter)
+
         layout.addStretch()
+
+    def update_tags(self, bitrate: str = "", bpm: str = "", genre: str = "") -> None:
+        parts = [p for p in [bitrate, bpm, genre] if p]
+        self.tag_label.setText(" · ".join(parts))
 
 
 class SidebarWidget(QWidget):
@@ -224,8 +320,9 @@ class MainWindow(QWidget):
         self._lyrics_timer.setInterval(300)
         self._lyrics_timer.timeout.connect(self._tick_lyrics)
 
-        # ── Audio worker → visualizer ─────────────────────────────────
+        # ── Audio worker → visualizer + spectrum ──────────────────────
         self.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
+        self.audio_worker.spectrum_ready.connect(self.stage.spectrum.set_spectrum)
 
     def _build_layout(self) -> None:
         vroot = QVBoxLayout(self)
@@ -241,12 +338,20 @@ class MainWindow(QWidget):
         self._setup_navigation()
         middle.addWidget(self.sidebar)
 
+        # Lyrics column: header + panel
+        lyrics_col = QVBoxLayout()
+        lyrics_col.setContentsMargins(0, 0, 0, 0)
+        lyrics_col.setSpacing(0)
+        from nocturne.ui.components.lyrics_panel import _build_lyrics_header
+        lyrics_col.addWidget(_build_lyrics_header())
+        self.lyrics_panel.setFixedWidth(300)
+        lyrics_col.addWidget(self.lyrics_panel, 1)
+
         col = QHBoxLayout()
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
         col.addWidget(self._views, 1)
-        self.lyrics_panel.setFixedWidth(300)
-        col.addWidget(self.lyrics_panel)
+        col.addLayout(lyrics_col)
 
         middle.addLayout(col, 1)
         vroot.addLayout(middle, 1)

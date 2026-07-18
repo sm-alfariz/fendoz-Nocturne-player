@@ -1,8 +1,7 @@
 # coding:utf-8
 """
 tokens.py — Design-token constants (Dark Navy theme).
-
-See 08-design-system.md for the full reference.
+See 08-design-system.md and mockup-nocturne.html.
 """
 
 from __future__ import annotations
@@ -17,7 +16,8 @@ class Color:
     BACKGROUND = "#0F172A"
     BACKGROUND_DEEP = "#0A0F1E"
     CARD = "#1E293B"
-    BORDER_GLASS = "rgba(79,195,247,0.14)"
+    CARD_SOFT = "rgba(30,41,59,0.55)"
+    BORDER = "rgba(79,195,247,0.14)"
     ACCENT_SECONDARY = "#F472B6"
     TEXT_PRIMARY = "#E2E8F0"
     TEXT_DIM = "#7C8AA5"
@@ -27,7 +27,7 @@ class Color:
 class Spacing:
     SIDEBAR_WIDTH = 220
     LYRICS_PANEL_WIDTH = 300
-    CORNER_RADIUS = 16
+    CORNER_RADIUS = 18
     TRANSITION_MS = 200
 
 
@@ -40,8 +40,8 @@ class Fonts:
 
 @dataclass(frozen=True)
 class FontWeights:
+    LOGO = 800
     DISPLAY_BOLD = 700
-    DISPLAY_EXTRA_BOLD = 800
     BODY_REGULAR = 400
     BODY_MEDIUM = 500
     BODY_SEMIBOLD = 600
