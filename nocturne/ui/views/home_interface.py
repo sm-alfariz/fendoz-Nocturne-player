@@ -55,7 +55,7 @@ class _Section(QWidget):
     def __init__(self, heading: str, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(24, 4, 24, 4)
         layout.setSpacing(12)
 
         header = QLabel(heading)
