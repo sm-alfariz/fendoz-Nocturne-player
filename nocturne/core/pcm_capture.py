@@ -88,11 +88,7 @@ class PCMCapture:
             return
 
         try:
-            if self._device:
-                device = self._device
-            else:
-                device = None
-
+            device = self._device or None
             with sd.InputStream(
                 device=device,
                 channels=self._channels,
