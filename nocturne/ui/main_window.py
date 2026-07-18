@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (
     FluentIcon as FIF,
+    NavigationDisplayMode,
     NavigationInterface,
     NavigationItemPosition,
     NavigationAvatarWidget,
@@ -237,7 +238,7 @@ class StageWidget(QWidget):
 
 
 class SidebarWidget(QWidget):
-    """Fixed-width sidebar with NavigationInterface."""
+    """Sidebar with NavigationInterface — adjusts width on collapse."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -248,7 +249,14 @@ class SidebarWidget(QWidget):
         layout.setSpacing(0)
 
         self.nav = NavigationInterface(self, True, True)
+        self.nav.displayModeChanged.connect(self._on_nav_mode_changed)
         layout.addWidget(self.nav)
+
+    def _on_nav_mode_changed(self, mode: NavigationDisplayMode) -> None:
+        if mode == NavigationDisplayMode.MINIMAL:
+            self.setFixedWidth(68)
+        else:
+            self.setFixedWidth(220)
 
 
 class MainWindow(QWidget):

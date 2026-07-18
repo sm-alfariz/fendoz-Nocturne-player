@@ -60,10 +60,9 @@ class PlaylistDetail(QWidget):
         layout.addLayout(top)
 
         self.track_list = QListWidget()
-        self.track_list.setAlternatingRowColors(True)
         self.track_list.setStyleSheet(
             "QListWidget{background:#1E293B;border:1px solid rgba(79,195,247,0.14);border-radius:8px;}"
-            "QListWidget::item{padding:8px 12px;color:#E2E8F0;border-bottom:1px solid rgba(79,195,247,0.06);}"
+            "QListWidget::item{padding:8px 12px;color:#E2E8F0;}"
             "QListWidget::item:selected{background:rgba(30,136,229,0.2);}"
         )
         self.track_list.doubleClicked.connect(self._on_double_click)
