@@ -221,7 +221,6 @@ class PlayerBar(QWidget):
 
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 200)
-        self.volume_slider.setValue(150)
         self.volume_slider.setFixedWidth(100)
         self.volume_slider.valueChanged.connect(self._on_volume)
         self.volume_slider.setStyleSheet(
@@ -262,6 +261,7 @@ class PlayerBar(QWidget):
 
     def set_progress(self, ms: int) -> None:
         if not self._engine:
+            
             return
         total = self._engine.duration_ms
         if total > 0:

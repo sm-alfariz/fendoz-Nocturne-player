@@ -408,6 +408,8 @@ class MainWindow(QWidget):
     def _switch_to(self, key: str) -> None:
         if key in self._pages:
             self._views.setCurrentWidget(self._pages[key])
+            if hasattr(self._pages[key], "load"):
+                self._pages[key].load()
 
     def show_view(self, key: str) -> None:
         self._switch_to(key)
@@ -466,7 +468,15 @@ class MainWindow(QWidget):
     def _resume_playback(self) -> None:
         """Restore last playback position on startup (FR-1.5)."""
         state = self.player_engine.load_state()
-        if not state or not state.get("path"):
+        if not state:
+            return
+
+        # Restore volume regardless of track path validity
+        vol = state.get("volume")
+        if vol is not None:
+            self.player_bar.volume_slider.setValue(vol)  # triggers _on_volume → engine
+
+        if not state.get("path"):
             return
         path = state["path"]
         if not Path(path).exists():

@@ -90,7 +90,12 @@ class AlbumsView(QWidget):
             self.grid_layout.addWidget(card)
 
     def _clear_layout(self) -> None:
+        from PySide6.QtWidgets import QLayoutItem, QWidget
         while self.grid_layout.count():
             item = self.grid_layout.takeAt(0)
-            if item and item.widget():
-                item.widget().deleteLater()
+            if isinstance(item, QWidget):
+                item.deleteLater()
+            elif isinstance(item, QLayoutItem):
+                w = item.widget()
+                if w:
+                    w.deleteLater()

@@ -177,6 +177,7 @@ class PlayerEngine:
         state = {
             "path": self.current_media_path,
             "position_ms": self.position_ms,
+            "volume": self.volume,
             "timestamp": time.time(),
         }
         state_path = Path(get_db_path()).parent / self._STATE_FILE
