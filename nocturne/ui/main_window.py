@@ -36,7 +36,6 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (
     FluentIcon as FIF,
-    NavigationDisplayMode,
     NavigationInterface,
     NavigationItemPosition,
     NavigationAvatarWidget,
@@ -237,38 +236,6 @@ class StageWidget(QWidget):
         self.tag_label.setText(" · ".join(parts))
 
 
-class SidebarWidget(QWidget):
-    """Sidebar with NavigationInterface — adjusts width on collapse."""
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setFixedWidth(220)
-        self.setStyleSheet(f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};")
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        self.nav = NavigationInterface(self, True, True)
-        self.nav.displayModeChanged.connect(self._on_nav_mode_changed)
-        layout.addWidget(self.nav)
-
-    def _on_nav_mode_changed(self, mode: NavigationDisplayMode) -> None:
-        if mode == NavigationDisplayMode.MINIMAL:
-            self.setMaximumWidth(68)
-            self.setMinimumWidth(68)
-            self.setStyleSheet("background:transparent;")
-        else:
-            self.setMaximumWidth(220)
-            self.setMinimumWidth(220)
-            self.setStyleSheet(
-                f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
-            )
-        self.updateGeometry()
-        p = self.parent()
-        if p and p.layout():
-            p.layout().invalidate()
-
-
 class MainWindow(QWidget):
     """Main application window — 3-column layout + player bar."""
 
@@ -392,11 +359,7 @@ class MainWindow(QWidget):
         middle.setContentsMargins(0, 0, 0, 0)
         middle.setSpacing(0)
 
-        self.sidebar = SidebarWidget(self)
-        self._setup_navigation()
-        middle.addWidget(self.sidebar)
-
-        # Lyrics column: header + panel
+        # Content column: views + lyrics
         lyrics_col = QVBoxLayout()
         lyrics_col.setContentsMargins(0, 0, 0, 0)
         lyrics_col.setSpacing(0)
@@ -411,12 +374,21 @@ class MainWindow(QWidget):
         col.addWidget(self._views, 1)
         col.addLayout(lyrics_col)
 
+        self.nav = NavigationInterface(self, True, True)
+        self.nav.setMinimumExpandWidth(800)
+        self.nav.setExpandWidth(220)
+        self.nav.setStyleSheet(
+            f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
+        )
+        self.nav.displayModeChanged.connect(self.top_bar.raise_)
+        self._setup_navigation()
+        middle.addWidget(self.nav)
         middle.addLayout(col, 1)
         vroot.addLayout(middle, 1)
         vroot.addWidget(self.player_bar)
 
     def _setup_navigation(self) -> None:
-        nav = self.sidebar.nav
+        nav = self.nav
 
         for key, label, icon, route_key in self.NAV_ITEMS:
             kwargs = dict(
@@ -439,8 +411,6 @@ class MainWindow(QWidget):
             position=NavigationItemPosition.BOTTOM,
         )
 
-        nav.setMinimumExpandWidth(800)
-        nav.setExpandWidth(220)
         nav.expand(useAni=False)
         nav.setCurrentItem("home")
 
@@ -460,7 +430,7 @@ class MainWindow(QWidget):
 
     def show_view(self, key: str) -> None:
         self._switch_to(key)
-        self.sidebar.nav.setCurrentItem(key)
+        self.nav.setCurrentItem(key)
 
     def _open_soundcloud_dialog(self) -> None:
         """Open SoundCloud URL dialog and play the resolved track."""
