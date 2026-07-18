@@ -6,7 +6,7 @@ songs_view.py — Sortable / filterable list of all scanned tracks.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, Signal
-from PySide6.QtWidgets import QHeaderView, QTableView, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHeaderView, QLabel, QTableView, QVBoxLayout, QWidget
 from qfluentwidgets import SearchLineEdit, TableView
 
 from nocturne.data.db import get_connection
@@ -86,6 +86,12 @@ class SongsView(QWidget):
         self.proxy.setFilterCaseSensitivity(Qt.CaseInsensitive)
         self.proxy.setFilterKeyColumn(-1)  # all columns
 
+        self._empty_label = QLabel("Belum ada lagu.\nPilih folder musik di Settings untuk memulai.")
+        self._empty_label.setAlignment(Qt.AlignCenter)
+        self._empty_label.setStyleSheet(f"color:{Color.TEXT_DIM};font-size:16px;padding:60px;")
+        self._empty_label.setVisible(False)
+        layout.addWidget(self._empty_label)
+
         self.table = TableView(self)
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
@@ -95,17 +101,8 @@ class SongsView(QWidget):
 
     def load(self) -> None:
         rows = self.model.load()
-        self._update_empty_state(rows == 0)
-
-    def _update_empty_state(self, empty: bool) -> None:
-        self.table.setVisible(not empty)
-        if empty and not hasattr(self, '_empty_label'):
-            self._empty_label = QLabel("Belum ada lagu.\nPilih folder musik di Settings untuk memulai.")
-            self._empty_label.setAlignment(Qt.AlignCenter)
-            self._empty_label.setStyleSheet(f"color:{Color.TEXT_DIM};font-size:16px;padding:60px;")
-            self.layout().addWidget(self._empty_label)
-        if self._empty_label:
-            self._empty_label.setVisible(empty)
+        self._empty_label.setVisible(rows == 0)
+        self.table.setVisible(rows > 0)
 
     def _filter(self, text: str) -> None:
         self.proxy.setFilterFixedString(text)

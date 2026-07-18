@@ -196,8 +196,9 @@ class PlaylistView(QWidget):
         result = pm.import_m3u(path)
         if result["missing"]:
             InfoBar.warning(
-                self, "Import",
-                f"{len(result['missing'])} tracks not found in library",
+                parent=self,
+                title="Import",
+                content=f"{len(result['missing'])} tracks not found in library",
                 duration=3000,
             )
         if result["found"]:
@@ -205,4 +206,9 @@ class PlaylistView(QWidget):
             for t in result["found"]:
                 pm.add_track(pid, t.id)
             self._reload_list()
-            InfoBar.success(self, "Import", f"{len(result['found'])} tracks imported", duration=2000)
+            InfoBar.success(
+                parent=self,
+                title="Import",
+                content=f"{len(result['found'])} tracks imported",
+                duration=2000,
+            )
