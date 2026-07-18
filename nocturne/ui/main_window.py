@@ -474,6 +474,10 @@ class MainWindow(QWidget):
                 return
         # soundcloud tracks: path is a URL, skip file check
 
+        # Save lyrics offset for previous track before switching
+        if self._current_track:
+            self._save_lyrics_offset(self._current_track)
+
         self._current_track = track
         self.player_engine.load_single(track.path)
         # load_single already calls player.play()
@@ -615,12 +619,33 @@ class MainWindow(QWidget):
         """Fetch lyrics from DB cache or .lrc sidecar."""
         conn = get_connection()
         row = conn.execute(
-            "SELECT lrc_content FROM lyrics WHERE track_id = ?", (track.id,)
+            "SELECT lrc_content, offset_ms FROM lyrics WHERE track_id = ?",
+            (track.id,),
         ).fetchone()
-        lrc_content = row[0] if row else None
+        if row:
+            lrc_content = row["lrc_content"]
+            self.lyrics_panel.set_offset(row["offset_ms"] or 0)
+        else:
+            lrc_content = None
+            self.lyrics_panel.set_offset(0)
 
         lines = LyricsParser.resolve(track.path or "", lrc_content)
         self.lyrics_panel.load_lyrics(lines or [])
+
+    def _save_lyrics_offset(self, track: Track) -> None:
+        """Save current lyrics offset to the database for this track."""
+        if not track or not track.id:
+            return
+        offset = self.lyrics_panel._offset_ms if hasattr(self.lyrics_panel, "_offset_ms") else 0
+        if offset == 0:
+            return
+        conn = get_connection()
+        conn.execute(
+            "INSERT OR REPLACE INTO lyrics (track_id, lrc_content, offset_ms) "
+            "VALUES (?, COALESCE((SELECT lrc_content FROM lyrics WHERE track_id = ?), ''), ?)",
+            (track.id, track.id, offset),
+        )
+        conn.commit()
 
     def _tick_lyrics(self) -> None:
         """Called every 300ms to sync lyrics highlight."""

@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QLinearGradient, QPainter
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from nocturne.ui.theme.tokens import Color, Fonts
 
@@ -108,6 +108,27 @@ class LyricsPanel(QScrollArea):
         )
         hl.addWidget(title)
         hl.addStretch()
+
+        self._offset_label = QLabel("0ms")
+        self._offset_label.setStyleSheet(
+            f"color:{Color.TEXT_DIM};font-size:9px;font-family:'{Fonts.MONO}';"
+            "padding:0 4px;"
+        )
+        self._offset_minus = QPushButton("-100")
+        self._offset_plus = QPushButton("+100")
+        for btn in (self._offset_minus, self._offset_plus):
+            btn.setFixedHeight(20)
+            btn.setStyleSheet(
+                f"color:{Color.ACCENT};font-size:10px;font-family:'{Fonts.MONO}';"
+                f"background:rgba(79,195,247,0.08);border:1px solid {Color.BORDER};"
+                "border-radius:5px;padding:0 6px;"
+            )
+        self._offset_minus.clicked.connect(lambda: self.adjust_offset(-100))
+        self._offset_plus.clicked.connect(lambda: self.adjust_offset(+100))
+        hl.addWidget(self._offset_minus)
+        hl.addWidget(self._offset_label)
+        hl.addWidget(self._offset_plus)
+        hl.addSpacing(4)
         hl.addWidget(_SyncBadge())
 
         # Header goes outside scroll area — handle via parent layout
@@ -203,3 +224,4 @@ class LyricsPanel(QScrollArea):
 
     def adjust_offset(self, delta_ms: int) -> None:
         self._offset_ms += delta_ms
+        self._offset_label.setText(f"{self._offset_ms:+d}ms")
