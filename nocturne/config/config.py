@@ -99,5 +99,6 @@ EN_SUPPORT_URL = "https://qfluentwidgets.com/price/"
 
 
 cfg = Config()
-cfg.themeMode.value = Theme.DARK
+cfg.themeMode.value = Theme.DARK  # default before load
 qconfig.load(os.path.join(ROOT, "config/config.json"), cfg)
+cfg.themeMode.value = Theme.DARK  # force dark after load (overrides config.json)
