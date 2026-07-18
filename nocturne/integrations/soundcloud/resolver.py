@@ -41,9 +41,10 @@ _CLIENT_ID: Optional[str] = None
 # ── Client ID management ───────────────────────────────────────────────
 
 def _fetch_client_id() -> Optional[str]:
-    """Extract client_id from SoundCloud web player HTML.
+    """Extract client_id from SoundCloud web player JavaScript.
 
-    This is the approach used by many open-source projects.
+    Walks the main JS bundle for `client_id:"..."` — more resilient than
+    scraping SSR hydration data.
     Falls back to a known recent client_id if extraction fails.
     """
     global _CLIENT_ID
@@ -54,7 +55,37 @@ def _fetch_client_id() -> Optional[str]:
         resp = httpx.get(SC_WEB, headers={"User-Agent": USER_AGENT}, timeout=10)
         resp.raise_for_status()
 
-        # Look for client_id in __sc_hydration apiClient data (SSR)
+        # Strategy 1: find JS bundle URL, fetch it, extract client_id
+        # Look for the main entry JS path in <script> tags
+        for js_match in re.finditer(
+            r'<script[^>]*src="([^"]*assets/[^"]*?\.js)"',
+            resp.text,
+        ):
+            js_url = js_match.group(1)
+            if js_url.startswith("//"):
+                js_url = "https:" + js_url
+            elif js_url.startswith("/"):
+                js_url = SC_WEB + js_url
+            if not js_url.startswith("http"):
+                continue
+            try:
+                js_resp = httpx.get(
+                    js_url,
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=10,
+                )
+                if js_resp.status_code != 200:
+                    continue
+                # client_id in bundle: `client_id:"abc123"`
+                match = re.search(r'client_id[=:]["\']([a-zA-Z0-9]+)["\']', js_resp.text)
+                if match:
+                    _CLIENT_ID = match.group(1)
+                    logger.info("Extracted client_id from JS bundle")
+                    return _CLIENT_ID
+            except Exception:
+                continue
+
+        # Strategy 2: look for client_id in __sc_hydration apiClient data (SSR)
         m = re.search(r'__sc_hydration\s*=\s*(\[.*?\]);', resp.text, re.DOTALL)
         if m:
             import json as _json
@@ -67,14 +98,14 @@ def _fetch_client_id() -> Optional[str]:
                         logger.info("Extracted client_id from hydration apiClient")
                         return _CLIENT_ID
 
-        # Fallback: look for client_id in <script> tags
+        # Strategy 3: direct regex on HTML
         match = re.search(r'client_id[=:]["\']([a-zA-Z0-9]+)["\']', resp.text)
         if match:
             _CLIENT_ID = match.group(1)
             logger.info("Extracted client_id from script")
             return _CLIENT_ID
 
-        # Fallback: look in JSON-LD or embedded app state
+        # Strategy 4: JSON-LD or embedded app state
         match = re.search(r'"clientId"\s*:\s*"([a-zA-Z0-9]+)"', resp.text)
         if match:
             _CLIENT_ID = match.group(1)
@@ -83,7 +114,7 @@ def _fetch_client_id() -> Optional[str]:
     except Exception as e:
         logger.warning("Failed to fetch client_id: %s", e)
 
-    # Last-resort fallback (may expire)
+    # Last-resort fallback (may expire) — regularly updated via community sources
     _CLIENT_ID = "emAJdGEj1mm9yjoCD2jkixmgqrGIyfpi"
     logger.warning("Using fallback client_id (may expire)")
     return _CLIENT_ID
@@ -192,6 +223,23 @@ def _parse_track(data: dict) -> dict:
 
 # ── Public API ─────────────────────────────────────────────────────────
 
+def _normalize_url(url: str) -> str:
+    """Follow redirects on short SoundCloud URLs to get the canonical URL."""
+    if not re.search(r"soundcloud\.com/(on\.soundcloud|s/)\b", url):
+        return url
+    try:
+        resp = httpx.head(
+            url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=10,
+            follow_redirects=True,
+        )
+        return str(resp.url)
+    except Exception as e:
+        logger.warning("URL normalization failed: %s", e)
+        return url
+
+
 def resolve_url(url: str) -> Optional[dict]:
     """Resolve a SoundCloud URL → track metadata dict.
 
@@ -199,8 +247,10 @@ def resolve_url(url: str) -> Optional[dict]:
     Returns dict with keys: title, artist, artwork_url, duration_ms,
     source_url, source_type, and stream_url (API v2 only, oEmbed excludes it).
     """
+    # Normalize short URLs first
+    resolved_url = _normalize_url(url)
     # Extract track ID from URL via resolve endpoint
-    result = _api_get(f"/resolve", {"url": url})
+    result = _api_get(f"/resolve", {"url": resolved_url})
     if result and result.get("kind") == "track":
         meta = _parse_track(result)
         stream = _extract_stream_url(result)
@@ -209,7 +259,7 @@ def resolve_url(url: str) -> Optional[dict]:
         return meta
 
     # Fallback: oEmbed (less metadata but no auth)
-    return _resolve_oembed(url)
+    return _resolve_oembed(resolved_url)
 
 
 def get_stream(url: str) -> Optional[str]:
@@ -217,7 +267,8 @@ def get_stream(url: str) -> Optional[str]:
 
     The stream URL requires the client_id and is time-limited.
     """
-    result = _api_get(f"/resolve", {"url": url})
+    resolved_url = _normalize_url(url)
+    result = _api_get(f"/resolve", {"url": resolved_url})
     if result:
         return _extract_stream_url(result)
     return None
