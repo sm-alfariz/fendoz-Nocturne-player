@@ -86,12 +86,16 @@ class LyricsParser:
         cls,
         file_path: str,
         lrc_content: Optional[str] = None,
+        artist: str = "",
+        title: str = "",
     ) -> list[LyricLine] | None:
-        """Convenience: try DB content → .lrc sidecar → None.
+        """Convenience: try DB content → .lrc sidecar → online → None.
 
         Args:
             file_path: Path to the audio file (used to find .lrc sidecar).
             lrc_content: Optional LRC string from DB cache.
+            artist: Track artist for online lookup (Level 4).
+            title: Track title for online lookup (Level 4).
         """
         # Level 3: DB cache
         if lrc_content:
@@ -125,4 +129,24 @@ class LyricsParser:
                 if parsed:
                     return parsed
 
+        # Level 4: Online lookup (FR-5.2)
+        from nocturne.config.config import cfg
+        if cfg.lyricsOnline.value and title:
+            from nocturne.integrations.lyrics.lyrics_online import fetch_lyrics_online
+            lrc_raw = fetch_lyrics_online(artist, title)
+            if lrc_raw:
+                parsed = cls.from_lrc(lrc_raw)
+                if parsed:
+                    return parsed
+
         return None
+
+
+def lines_to_lrc(lines: list[LyricLine]) -> str:
+    """Convert LyricLine list back to LRC-format string."""
+    parts = []
+    for ll in lines:
+        m, s = divmod(ll.timestamp_ms // 1000, 60)
+        ms = ll.timestamp_ms % 1000
+        parts.append(f"[{m:02d}:{s:02d}.{ms:03d}]{ll.text}")
+    return "\n".join(parts)

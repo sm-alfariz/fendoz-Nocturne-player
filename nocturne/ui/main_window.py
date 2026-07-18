@@ -59,7 +59,7 @@ from nocturne.common.signal_bus import signalBus
 from nocturne.core.player_engine import PlayerEngine
 from nocturne.core.equalizer import Equalizer
 from nocturne.core.audio_worker import AudioWorker
-from nocturne.core.lyrics_sync import LyricsParser
+from nocturne.core.lyrics_sync import LyricsParser, lines_to_lrc
 from nocturne.data.db import get_connection
 from nocturne.data.models import Track
 from nocturne.data.library_scanner import LibraryScanner
@@ -678,8 +678,21 @@ class MainWindow(QWidget):
             lrc_content = None
             self.lyrics_panel.set_offset(0)
 
-        lines = LyricsParser.resolve(track.path or "", lrc_content)
+        lines = LyricsParser.resolve(
+            track.path or "", lrc_content,
+            artist=track.artist or "", title=track.title,
+        )
         self.lyrics_panel.load_lyrics(lines or [])
+
+        # Cache online result in DB for next time (Level 3)
+        if lines and not lrc_content and track.id:
+            lrc_text = lines_to_lrc(lines)
+            if lrc_text:
+                conn.execute(
+                    "INSERT OR REPLACE INTO lyrics (track_id, lrc_content) VALUES (?, ?)",
+                    (track.id, lrc_text),
+                )
+                conn.commit()
 
     def _save_lyrics_offset(self, track: Track) -> None:
         """Save current lyrics offset to the database for this track."""
