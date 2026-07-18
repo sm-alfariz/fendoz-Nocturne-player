@@ -274,7 +274,11 @@ class PlayerBar(QWidget):
     def _on_play(self) -> None:
         if self._engine:
             self._engine.toggle_play()
-            self.set_playing(self._engine.is_playing)
+            playing = self._engine.is_playing
+            self.set_playing(playing)
+            # MainWindow handles AudioWorker start/stop via this signal
+            from nocturne.common.signal_bus import signalBus
+            signalBus.play_toggled.emit(playing)
 
     def _on_seek(self, value: int) -> None:
         if self._engine and self._engine.duration_ms > 0:

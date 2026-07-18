@@ -57,8 +57,8 @@ from nocturne.ui.views.songs_view import SongsView
 from nocturne.ui.views.artists_view import ArtistsView
 from nocturne.ui.views.albums_view import AlbumsView
 from nocturne.ui.views.equalizer_view import EqualizerView
-from nocturne.ui.theme.theme_manager import apply_theme
 from nocturne.ui.theme.tokens import Color, Fonts, FontWeights
+from nocturne.common.signal_bus import signalBus
 from nocturne.core.player_engine import PlayerEngine
 from nocturne.core.equalizer import Equalizer
 from nocturne.core.audio_worker import AudioWorker
@@ -175,6 +175,7 @@ class StageWidget(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.setStyleSheet(f"background:{Color.BACKGROUND};")
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
         layout.setContentsMargins(32, 28, 32, 16)
@@ -235,6 +236,7 @@ class SidebarWidget(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setFixedWidth(220)
+        self.setStyleSheet(f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -252,7 +254,7 @@ class MainWindow(QWidget):
         ("artists", "Artists", FIF.PEOPLE, "artists"),
         ("albums", "Albums", FIF.ALBUM, "albums"),
         ("playlist", "Playlist", FIF.MUSIC_FOLDER, "playlist"),
-        ("equalizer", "Equalizer", FIF.SETTING, "equalizer"),
+        ("equalizer", "Equalizer", FIF.MIX_VOLUMES, "equalizer"),
         ("settings", "Settings", FIF.SETTING, "settings"),
     ]
 
@@ -262,6 +264,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Nocturne")
         self.setMinimumSize(1100, 720)
         self.resize(1280, 800)
+        self.setStyleSheet(f"background:{Color.BACKGROUND_DEEP};")
 
         # ── Core engine ───────────────────────────────────────────────
         self.player_engine = PlayerEngine()
@@ -277,6 +280,7 @@ class MainWindow(QWidget):
 
         # ── Views ─────────────────────────────────────────────────────
         self._views = QStackedWidget()
+        self._views.setStyleSheet(f"background:{Color.BACKGROUND};")
         self._pages: dict[str, QWidget] = {}
         for key, label, icon, route in self.NAV_ITEMS:
             if key == "home":
@@ -303,7 +307,7 @@ class MainWindow(QWidget):
         # ── UI components ─────────────────────────────────────────────
         self.player_bar = PlayerBar(self)
         self.player_bar.bind_engine(self.player_engine)
-        self.player_bar.play_toggled.connect(self._on_play_toggled)
+        signalBus.play_toggled.connect(self._on_play_toggled)
         self.player_bar.next_requested.connect(self.player_engine.next)
         self.player_bar.prev_requested.connect(self.player_engine.previous)
 
@@ -313,12 +317,19 @@ class MainWindow(QWidget):
 
         # ── Build layout ──────────────────────────────────────────────
         self._build_layout()
+
+        # Load base QSS
+        from nocturne.ui.theme.theme_manager import apply_theme
         apply_theme(QApplication.instance() or QApplication([]))
 
         # ── Lyrics sync timer ─────────────────────────────────────────
         self._lyrics_timer = QTimer(self)
         self._lyrics_timer.setInterval(300)
         self._lyrics_timer.timeout.connect(self._tick_lyrics)
+
+        # ── Signal bus connections ────────────────────────────────────
+        signalBus.folder_added.connect(self._on_folder_added)
+        signalBus.scan_started.connect(self._scan_library)
 
         # ── Audio worker → visualizer + spectrum ──────────────────────
         self.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
@@ -476,15 +487,18 @@ class MainWindow(QWidget):
         # Save state
         self.player_engine.save_state()
 
-    def _on_play_toggled(self) -> None:
-        self.player_engine.toggle_play()
-        playing = self.player_engine.is_playing
+    def _on_play_toggled(self, playing: bool) -> None:
         self.player_bar.set_playing(playing)
         if playing:
             self.audio_worker.start()
             self._lyrics_timer.start()
         else:
             self._lyrics_timer.stop()
+
+    def _on_folder_added(self, folder: str) -> None:
+        path = Path(folder)
+        if path.is_dir() and path not in self._music_folders:
+            self._music_folders.append(path)
 
     # ── Lyrics ────────────────────────────────────────────────────────
 

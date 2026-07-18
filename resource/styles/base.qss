@@ -1,33 +1,15 @@
 /* base.qss — Shared design tokens for Nocturne.
    Referenced tokens from 08-design-system.md.
-   Loaded globally by apply_theme().
+   Loaded as a base dark layer, component-specific styles override.
 */
 
 QWidget {
     font-family: "Inter", "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 
-/* Card / panel rounded corners */
+/* Card / rounded corners */
 CardWidget, QFrame#card {
-    border-radius: 16px;
-}
-
-/* Glassmorphism panel base */
-PanelBase {
-    background: rgba(30, 41, 59, 0.75);
-    border: 1px solid rgba(79, 195, 247, 0.14);
-    border-radius: 16px;
-}
-
-/* Navigation sidebar — mockup style */
-NavigationInterface {
-    background: rgba(15, 23, 42, 0.35);
-    border-right: 1px solid rgba(79, 195, 247, 0.14);
-}
-
-NavigationTreeWidget[selected="true"] {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(30,136,229,0.22), stop:1 rgba(79,195,247,0.05));
+    border-radius: 12px;
 }
 
 /* Scrollbar styling */
@@ -41,4 +23,18 @@ QScrollBar::handle:vertical {
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     height: 0;
+}
+QScrollBar::horizontal {
+    height: 6px;
+    background: transparent;
+}
+QScrollBar::handle:horizontal {
+    background: rgba(79, 195, 247, 0.25);
+    border-radius: 6px;
+}
+
+/* Navigation override for dark background */
+NavigationInterface {
+    background: rgba(15, 23, 42, 0.35);
+    border-right: 1px solid rgba(79, 195, 247, 0.14);
 }

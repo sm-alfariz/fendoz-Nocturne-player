@@ -14,6 +14,9 @@ class SignalBus(QObject):
     switchToSampleCard = Signal(str, int)
     micaEnableChanged = Signal(bool)
     supportSignal = Signal()
+    folder_added = Signal(str)
+    scan_started = Signal()
+    play_toggled = Signal(bool)
 
 
 signalBus = SignalBus()

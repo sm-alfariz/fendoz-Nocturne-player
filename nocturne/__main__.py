@@ -40,7 +40,10 @@ if cfg.get(cfg.dpiScale) != "Auto":
 app = QApplication(sys.argv)
 app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 
+# Force dark theme before any widgets are created
 from qfluentwidgets import setTheme, Theme
+from qfluentwidgets import qconfig
+qconfig.set(qconfig.themeMode, Theme.DARK)
 setTheme(Theme.DARK)
 
 from nocturne.ui.main_window import MainWindow

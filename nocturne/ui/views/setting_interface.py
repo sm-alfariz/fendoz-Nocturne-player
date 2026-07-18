@@ -288,7 +288,7 @@ class SettingInterface(ScrollArea):
         self.feedbackCard.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
         )
-        self.scanCard.clicked.connect(self.scan_requested.emit)
+        self.scanCard.clicked.connect(signalBus.scan_started.emit)
 
     def _add_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
@@ -298,12 +298,8 @@ class SettingInterface(ScrollArea):
             self.folderCard.setContent(
                 self.tr(f"Folder: {folder}")
             )
-            # Notify MainWindow
-            parent = self.parent()
-            while parent and not hasattr(parent, 'add_music_folder'):
-                parent = parent.parent()
-            if parent and hasattr(parent, 'add_music_folder'):
-                parent.add_music_folder(folder)
+            # Notify via signal bus
+            signalBus.folder_added.emit(folder)
 
     def _open_crash_log_dir(self) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(self._crash_log_dir))
