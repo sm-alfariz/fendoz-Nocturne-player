@@ -447,23 +447,10 @@ class MainWindow(QWidget):
 
                 pl_layout.addWidget(item_w)
 
-        # Always register the nav widget (even empty heading)
-        class _NavContainer(QPushButton):
-            def setSelected(self, selected):
-                pass
-        pl_container = _NavContainer()
-        pl_container.setFlat(True)
-        pl_container.setStyleSheet("background:transparent;border:none;")
-        pl_layout_container = QVBoxLayout(pl_container)
-        pl_layout_container.setContentsMargins(0, 0, 0, 0)
-        pl_layout_container.addWidget(pl_section)
-
-        nav.addWidget(
-            routeKey="playlist_section",
-            widget=pl_container,
-            onClick=lambda: None,
-            position=NavigationItemPosition.SCROLL,
-        )
+        # Directly add to the scroll layout so it renders in the sidebar
+        pl_section.setMinimumHeight(50)
+        nav.panel.scrollLayout.addWidget(pl_section)
+        nav.panel.scrollLayout.update()
 
         nav.addSeparator()
         nav.addWidget(
