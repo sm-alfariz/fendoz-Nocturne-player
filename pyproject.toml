@@ -1,16 +1,20 @@
 [project]
-name = "fendoz-Nocturne-player"
+name = "nocturne"
 version = "0.1.0"
-description = "Nocturne adalah aplikasi pemutar musik desktop berdesain premium dengan pendekatan offline-first"
+description = "Nocturne — premium offline-first desktop music player"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "colorthief>=0.2.1",
   "darkdetect>=0.8.0",
+  "httpx>=0.28",
+  "mutagen>=1.47",
+  "numpy>=2.0",
   "pillow>=12.3.0",
   "pyside6>=6.4.2",
   "pyside6-fluent-widgets[full]>=1.11.2",
   "pysidesix-frameless-window>=0.8.0",
+  "python-vlc>=3.0",
   "ruff>=0.15.20",
   "scipy>=1.18.0",
 ]

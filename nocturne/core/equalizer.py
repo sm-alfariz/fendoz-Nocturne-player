@@ -1,0 +1,108 @@
+# coding:utf-8
+"""
+equalizer.py — 10-band equalizer via libVLC native equalizer API.
+
+FR-3.1–3.4: ±12dB per band, presets, real-time without audio pop.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from typing import Optional
+
+import vlc
+
+from nocturne.data.db import get_connection
+
+
+# ISO standard 10-band frequencies: 31, 62, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz
+BAND_COUNT = 10
+BAND_LABELS = ["31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"]
+
+# Built-in presets (values in dB)
+BUILTIN_PRESETS = {
+    "Flat": [0.0] * 10,
+    "Bass Boost": [5.0, 4.0, 2.0, 0.0, -0.5, -1.0, -1.5, -2.0, -1.5, -1.0],
+    "Treble Boost": [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0],
+    "Vocal": [-1.0, -0.5, 0.0, 1.0, 2.0, 2.5, 2.0, 1.0, 1.0, 0.5],
+    "Rock": [4.0, 3.0, 2.0, 1.0, 0.0, -0.5, 1.0, 2.0, 3.0, 3.5],
+    "Jazz": [3.0, 2.5, 2.0, 1.5, 1.0, 0.5, 1.0, 1.5, 2.0, 2.5],
+}
+
+
+class Equalizer:
+    """Wraps libVLC equalizer API for 10-band control."""
+
+    def __init__(self, player_instance: vlc.Instance) -> None:
+        self._instance = player_instance
+        self._eq = None
+        self._current_preset = "Flat"
+
+    @property
+    def current_preset(self) -> str:
+        return self._current_preset
+
+    def apply_preset(self, name: str, custom_values: Optional[list[float]] = None) -> None:
+        """Apply a preset by name, or custom values."""
+        if name in BUILTIN_PRESETS:
+            values = BUILTIN_PRESETS[name]
+        elif custom_values is not None and len(custom_values) == BAND_COUNT:
+            values = custom_values
+            name = "Custom"
+        else:
+            return
+
+        self._eq = vlc.AudioEqualizer()
+
+        for band_idx in range(BAND_COUNT):
+            # libVLC bands: preamp (index -1), then each band
+            self._eq.set_amp_at_index(values[band_idx], band_idx)
+
+        self._current_preset = name
+
+    def set_band(self, band_index: int, db_value: float) -> None:
+        """Adjust a single band in real-time."""
+        if self._eq:
+            self._eq.set_amp_at_index(max(-12.0, min(12.0, db_value)), band_index)
+
+    def attach_to_player(self, player) -> None:
+        """Attach equalizer to a libVLC media player."""
+        if self._eq:
+            player.set_equalizer(self._eq)
+
+    # ── Preset persistence ────────────────────────────────────────────
+
+    def save_custom_preset(self, name: str, values: list[float]) -> int:
+        """Save a custom EQ preset to the database."""
+        conn = get_connection()
+        cursor = conn.execute(
+            "INSERT INTO eq_presets (name, band_values_json, is_custom) VALUES (?, ?, 1)",
+            (name, json.dumps(values)),
+        )
+        conn.commit()
+        conn.close()
+        return cursor.lastrowid
+
+    def load_custom_presets(self) -> dict[str, list[float]]:
+        """Load all custom EQ presets from DB."""
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT name, band_values_json FROM eq_presets WHERE is_custom = 1"
+        ).fetchall()
+        conn.close()
+        presets = {}
+        for r in rows:
+            try:
+                presets[r[0]] = json.loads(r[1])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return presets
+
+    @classmethod
+    def all_presets(cls, include_custom: Optional[dict[str, list[float]]] = None) -> dict[str, list[float]]:
+        """Return built-in presets merged with custom ones."""
+        presets = dict(BUILTIN_PRESETS)
+        if include_custom:
+            presets.update(include_custom)
+        return presets

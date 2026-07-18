@@ -1,0 +1,22 @@
+/* base.qss — Shared design tokens for Nocturne.
+   Referenced tokens from 08-design-system.md.
+   Imported by component-specific QSS files via @import (if supported) or
+   loaded globally by apply_theme().
+*/
+
+/* Corner radius & glass effect */
+QWidget {
+    font-family: "Inter", "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+/* Card / panel rounded corners */
+CardWidget, QFrame#card {
+    border-radius: 16px;
+}
+
+/* Glassmorphism panel base */
+PanelBase {
+    background: rgba(30, 41, 59, 0.75);
+    border: 1px solid rgba(79, 195, 247, 0.14);
+    border-radius: 16px;
+}
