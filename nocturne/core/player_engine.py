@@ -48,7 +48,7 @@ class PlayerEngine:
         self._list_player.play()
 
     def pause(self) -> None:
-        self._list_player.paused()
+        self._list_player.pause()
 
     def stop(self) -> None:
         self._list_player.stop()
@@ -153,9 +153,13 @@ class PlayerEngine:
 
     @property
     def current_media_path(self) -> str | None:
+        from urllib.parse import unquote
         media = self._player.get_media()
         if media:
-            return media.get_mrl()
+            mrl = media.get_mrl()
+            if mrl and mrl.startswith("file://"):
+                return unquote(mrl[len("file://"):])
+            return mrl
         return None
 
     # ── Playback state persistence ────────────────────────────────────

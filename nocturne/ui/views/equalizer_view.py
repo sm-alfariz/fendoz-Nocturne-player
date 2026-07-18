@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
-from qfluentwidgets import ComboBox, FlowLayout, PushButton
+from qfluentwidgets import ComboBox, PushButton
 
 from nocturne.core.equalizer import BAND_COUNT, BAND_LABELS, Equalizer
 from nocturne.ui.theme.tokens import Color

@@ -5,7 +5,7 @@ songs_view.py — Sortable / filterable list of all scanned tracks.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel
+from PySide6.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, Signal
 from PySide6.QtWidgets import QHeaderView, QTableView, QVBoxLayout, QWidget
 from qfluentwidgets import SearchLineEdit, TableView
 
@@ -65,6 +65,8 @@ class SongTableModel(QAbstractTableModel):
 class SongsView(QWidget):
     """Songs list page with search filter."""
 
+    track_activated = Signal(object)  # Track
+
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -85,6 +87,7 @@ class SongsView(QWidget):
         self.table.setModel(self.proxy)
         self.table.setSortingEnabled(True)
         self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.doubleClicked.connect(self._on_double_click)
         layout.addWidget(self.table)
 
     def load(self) -> None:
@@ -92,3 +95,8 @@ class SongsView(QWidget):
 
     def _filter(self, text: str) -> None:
         self.proxy.setFilterFixedString(text)
+
+    def _on_double_click(self, index) -> None:
+        source_index = self.proxy.mapToSource(index)
+        track = self.model.track_at(source_index.row())
+        self.track_activated.emit(track)

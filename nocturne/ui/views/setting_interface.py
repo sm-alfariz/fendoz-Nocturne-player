@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QFileDialog, QLabel, QWidget
 from qfluentwidgets import (
@@ -38,6 +38,8 @@ from nocturne.config.config import FEEDBACK_URL, HELP_URL, VERSION, YEAR, cfg, i
 
 class SettingInterface(ScrollArea):
     """Setting interface"""
+
+    scan_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -286,6 +288,7 @@ class SettingInterface(ScrollArea):
         self.feedbackCard.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
         )
+        self.scanCard.clicked.connect(self.scan_requested.emit)
 
     def _add_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
@@ -295,6 +298,12 @@ class SettingInterface(ScrollArea):
             self.folderCard.setContent(
                 self.tr(f"Folder: {folder}")
             )
+            # Notify MainWindow
+            parent = self.parent()
+            while parent and not hasattr(parent, 'add_music_folder'):
+                parent = parent.parent()
+            if parent and hasattr(parent, 'add_music_folder'):
+                parent.add_music_folder(folder)
 
     def _open_crash_log_dir(self) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(self._crash_log_dir))

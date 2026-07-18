@@ -5,7 +5,7 @@ artists_view.py — Grid card view of artists, click to show tracks.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QGridLayout, QPushButton
 from qfluentwidgets import CardWidget, FlowLayout
 
@@ -26,9 +26,19 @@ class ArtistCard(CardWidget):
         layout.addWidget(self.name_label, 0, Qt.AlignCenter)
         layout.addWidget(self.count_label, 0, Qt.AlignCenter)
 
+    def mouseReleaseEvent(self, e):
+        super().mouseReleaseEvent(e)
+        parent = self.parent()
+        while parent and not isinstance(parent, ArtistsView):
+            parent = parent.parent()
+        if parent:
+            parent.artist_activated.emit(self.artist_name)
+
 
 class ArtistsView(QWidget):
     """Artists page — grid of artist cards."""
+
+    artist_activated = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -44,6 +54,8 @@ class ArtistsView(QWidget):
         layout.addWidget(self.grid)
 
     def load(self) -> None:
+        # Clear existing
+        self._clear_layout()
         conn = get_connection()
         rows = conn.execute(
             "SELECT artist, COUNT(*) as cnt FROM tracks "
@@ -53,3 +65,9 @@ class ArtistsView(QWidget):
         for row in rows:
             card = ArtistCard(row[0], row[1], self.grid)
             self.grid_layout.addWidget(card)
+
+    def _clear_layout(self) -> None:
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()

@@ -5,7 +5,7 @@ albums_view.py — Grid card view of albums, click to show tracks.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QGridLayout
 from qfluentwidgets import CardWidget, FlowLayout
@@ -44,9 +44,19 @@ class AlbumCard(CardWidget):
         self.subtitle.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.subtitle)
 
+    def mouseReleaseEvent(self, e):
+        super().mouseReleaseEvent(e)
+        parent = self.parent()
+        while parent and not isinstance(parent, AlbumsView):
+            parent = parent.parent()
+        if parent:
+            parent.album_activated.emit(self.album_id)
+
 
 class AlbumsView(QWidget):
     """Albums page — grid of album cards."""
+
+    album_activated = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -62,6 +72,7 @@ class AlbumsView(QWidget):
         layout.addWidget(self.grid)
 
     def load(self) -> None:
+        self._clear_layout()
         conn = get_connection()
         rows = conn.execute(
             "SELECT a.id, a.title, a.artist, a.artwork_blob, COUNT(t.id) as cnt "
@@ -71,3 +82,9 @@ class AlbumsView(QWidget):
         for r in rows:
             card = AlbumCard(r[0], r[1], r[2], r[3], r[4], self.grid)
             self.grid_layout.addWidget(card)
+
+    def _clear_layout(self) -> None:
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()

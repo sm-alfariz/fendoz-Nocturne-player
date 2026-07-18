@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import os
 import sys
+import sqlite3
+from pathlib import Path
+from typing import Optional
 
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -41,16 +44,27 @@ from qfluentwidgets import (
     SearchLineEdit,
 )
 
+import vlc
+
 from nocturne.config.config import ROOT, cfg
 from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.components.lyrics_panel import LyricsPanel
+from nocturne.ui.components.ring_visualizer import RingVisualizer
 from nocturne.ui.views.blank_widget import BlankWidget
 from nocturne.ui.views.home_interface import HomeInterface
 from nocturne.ui.views.setting_interface import SettingInterface
 from nocturne.ui.views.songs_view import SongsView
 from nocturne.ui.views.artists_view import ArtistsView
 from nocturne.ui.views.albums_view import AlbumsView
+from nocturne.ui.views.equalizer_view import EqualizerView
 from nocturne.ui.theme.theme_manager import apply_theme
+from nocturne.core.player_engine import PlayerEngine
+from nocturne.core.equalizer import Equalizer
+from nocturne.core.audio_worker import AudioWorker
+from nocturne.core.lyrics_sync import LyricsParser
+from nocturne.data.db import get_connection
+from nocturne.data.models import Track
+from nocturne.data.library_scanner import LibraryScanner
 
 
 class TopBar(QWidget):
@@ -62,12 +76,10 @@ class TopBar(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 4, 16, 4)
 
-        # Logo / title
         self.logo = QLabel("Nocturne")
         self.logo.setObjectName("topBarLogo")
         layout.addWidget(self.logo)
 
-        # Search
         self.search = SearchLineEdit(self)
         self.search.setPlaceholderText(self.tr("Search music, artists, albums…"))
         self.search.setFixedWidth(320)
@@ -76,21 +88,18 @@ class TopBar(QWidget):
 
         layout.addStretch()
 
-        # Notifications
         self.notif_btn = QPushButton()
         self.notif_btn.setIcon(FIF.RINGER.icon())
         self.notif_btn.setFixedSize(32, 32)
         self.notif_btn.setFlat(True)
         layout.addWidget(self.notif_btn)
 
-        # Settings shortcut
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(FIF.SETTING.icon())
         self.settings_btn.setFixedSize(32, 32)
         self.settings_btn.setFlat(True)
         layout.addWidget(self.settings_btn)
 
-        # Profile
         self.profile = NavigationAvatarWidget("User", os.path.join(ROOT, "resource", "img", "icon.png"))
         layout.addWidget(self.profile)
 
@@ -102,12 +111,26 @@ class StageWidget(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
+        layout.setContentsMargins(32, 16, 32, 16)
 
-        # Placeholder — will hold AlbumArt + RingVisualizer
-        self.placeholder = QLabel("Stage — Album Art + Ring Visualizer")
-        self.placeholder.setAlignment(Qt.AlignCenter)
-        self.placeholder.setStyleSheet("color: #7C8AA5; font-size: 14px;")
-        layout.addWidget(self.placeholder)
+        # Ring visualizer wraps album art
+        self.ring = RingVisualizer(self)
+        self.ring.setFixedSize(280, 280)
+        layout.addWidget(self.ring, 0, Qt.AlignCenter)
+
+        # Track metadata
+        self.track_title = QLabel("")
+        self.track_title.setStyleSheet("font-size: 21px; font-weight: 700; font-family: 'Sora'; color: #E2E8F0;")
+        self.track_title.setAlignment(Qt.AlignCenter)
+        layout.addSpacing(16)
+        layout.addWidget(self.track_title)
+
+        self.track_artist = QLabel("")
+        self.track_artist.setStyleSheet("font-size: 13px; color: #7C8AA5;")
+        self.track_artist.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.track_artist)
+
+        layout.addStretch()
 
 
 class SidebarWidget(QWidget):
@@ -144,92 +167,102 @@ class MainWindow(QWidget):
         self.setMinimumSize(1100, 720)
         self.resize(1280, 800)
 
-        # --- Views (stacked) ---
+        # ── Core engine ───────────────────────────────────────────────
+        self.player_engine = PlayerEngine()
+        self.equalizer = Equalizer(self.player_engine._instance)
+        self.audio_worker = AudioWorker(
+            pcm_source=self.player_engine.pcm_data, parent=self
+        )
+        self.equalizer.apply_preset("Flat")
+        self.equalizer.attach_to_player(self.player_engine._player)
+
+        self._music_folders: list[Path] = []
+        self._current_track: Optional[Track] = None
+
+        # ── Views ─────────────────────────────────────────────────────
         self._views = QStackedWidget()
-        self._pages = {}
+        self._pages: dict[str, QWidget] = {}
         for key, label, icon, route in self.NAV_ITEMS:
             if key == "home":
                 w = HomeInterface(self)
             elif key == "songs":
                 w = SongsView(self)
+                w.track_activated.connect(self._play_track)
             elif key == "artists":
                 w = ArtistsView(self)
+                w.artist_activated.connect(self._play_artist_tracks)
             elif key == "albums":
                 w = AlbumsView(self)
+                w.album_activated.connect(self._play_album_tracks)
             elif key == "settings":
                 w = SettingInterface(self)
-            elif key in ("playlist", "equalizer"):
-                w = BlankWidget(label, self)
+                w.scan_requested.connect(self._scan_library)
+            elif key == "equalizer":
+                w = EqualizerView(self.equalizer, self)
             else:
                 w = BlankWidget(label, self)
             self._pages[key] = w
             self._views.addWidget(w)
 
-        # --- Player bar (bottom) ---
+        # ── UI components ─────────────────────────────────────────────
         self.player_bar = PlayerBar(self)
+        self.player_bar.bind_engine(self.player_engine)
+        self.player_bar.play_toggled.connect(self._on_play_toggled)
+        self.player_bar.next_requested.connect(self.player_engine.next)
+        self.player_bar.prev_requested.connect(self.player_engine.previous)
 
-        # --- Lyrics panel (right) ---
         self.lyrics_panel = LyricsPanel(self)
-
-        # --- Stage (center) ---
         self.stage = StageWidget(self)
-
-        # --- Top bar ---
         self.top_bar = TopBar(self)
 
-        # Build layout
+        # ── Build layout ──────────────────────────────────────────────
         self._build_layout()
-
-        # Apply theme
         apply_theme(QApplication.instance() or QApplication([]))
 
+        # ── Lyrics sync timer ─────────────────────────────────────────
+        self._lyrics_timer = QTimer(self)
+        self._lyrics_timer.setInterval(300)
+        self._lyrics_timer.timeout.connect(self._tick_lyrics)
+
+        # ── Audio worker → visualizer ─────────────────────────────────
+        self.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
+
     def _build_layout(self) -> None:
-        """Build the 3-column + top bar + player bar layout."""
         vroot = QVBoxLayout(self)
         vroot.setContentsMargins(0, 0, 0, 0)
         vroot.setSpacing(0)
-
-        # Top bar
         vroot.addWidget(self.top_bar)
 
-        # Middle: sidebar + (stage + lyrics)
         middle = QHBoxLayout()
         middle.setContentsMargins(0, 0, 0, 0)
         middle.setSpacing(0)
 
-        # Sidebar
         self.sidebar = SidebarWidget(self)
         self._setup_navigation()
         middle.addWidget(self.sidebar)
 
-        # Column: stage (stretch) + lyrics panel (fixed 300px)
         col = QHBoxLayout()
         col.setContentsMargins(0, 0, 0, 0)
         col.setSpacing(0)
-        col.addWidget(self._views, 1)  # stacked views fill the center
+        col.addWidget(self._views, 1)
         self.lyrics_panel.setFixedWidth(300)
         col.addWidget(self.lyrics_panel)
 
         middle.addLayout(col, 1)
         vroot.addLayout(middle, 1)
-
-        # Player bar (bottom)
         vroot.addWidget(self.player_bar)
 
     def _setup_navigation(self) -> None:
-        """Populate NavigationInterface with PRD 7-item sidebar."""
         nav = self.sidebar.nav
 
-        route_keys = {}
         for key, label, icon, route_key in self.NAV_ITEMS:
-            route_keys[key] = route_key
             kwargs = dict(
                 routeKey=route_key,
                 text=label,
                 icon=icon,
                 onClick=lambda k=key: self._switch_to(k),
             )
-            if key == "settings":
+            if key in ("settings", "equalizer"):
                 kwargs["position"] = NavigationItemPosition.BOTTOM
             nav.addItem(**kwargs)
 
@@ -246,25 +279,158 @@ class MainWindow(QWidget):
         nav.setMinimumExpandWidth(800)
         nav.setExpandWidth(220)
         nav.expand(useAni=False)
-
-        # Default to home
         nav.setCurrentItem("home")
 
     def _switch_to(self, key: str) -> None:
-        """Switch the stacked widget to the given page key."""
         if key in self._pages:
             self._views.setCurrentWidget(self._pages[key])
 
-    # ── Expose for sub-interfaces ─────────────────────────────────────
-
-    @property
-    def current_view(self) -> QWidget | None:
-        return self._views.currentWidget()
-
     def show_view(self, key: str) -> None:
-        """Programmatic navigation (e.g. from settings 'open folder')."""
         self._switch_to(key)
         self.sidebar.nav.setCurrentItem(key)
+
+    # ── Playback ──────────────────────────────────────────────────────
+
+    def _play_track(self, track: Track) -> None:
+        """Play a single track."""
+        if not track.path or not Path(track.path).exists():
+            return
+
+        self._current_track = track
+        self.player_engine.load_single(track.path)
+        self.player_engine.play()
+        self._on_track_changed(track)
+
+    def _play_artist_tracks(self, artist: str) -> None:
+        """Queue all tracks by an artist."""
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT * FROM tracks WHERE artist = ? AND path IS NOT NULL ORDER BY album_id, title",
+            (artist,),
+        ).fetchall()
+        tracks = [Track.from_row(r) for r in rows]
+        if not tracks:
+            return
+        paths = [t.path for t in tracks if t.path and Path(t.path).exists()]
+        if not paths:
+            return
+        self.player_engine.load_playlist(paths, 0)
+        self.player_engine.play()
+        self._current_track = tracks[0]
+        self._on_track_changed(tracks[0])
+
+    def _play_album_tracks(self, album_id: int) -> None:
+        """Queue all tracks in an album."""
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT * FROM tracks WHERE album_id = ? AND path IS NOT NULL ORDER BY title",
+            (album_id,),
+        ).fetchall()
+        tracks = [Track.from_row(r) for r in rows]
+        if not tracks:
+            return
+        paths = [t.path for t in tracks if t.path and Path(t.path).exists()]
+        if not paths:
+            return
+        self.player_engine.load_playlist(paths, 0)
+        self.player_engine.play()
+        self._current_track = tracks[0]
+        self._on_track_changed(tracks[0])
+
+    def _on_track_changed(self, track: Track) -> None:
+        """Update all UI when track changes."""
+        # Player bar
+        self.player_bar.update_track_info(
+            title=track.title,
+            artist=track.artist or "",
+        )
+
+        # Stage
+        self.stage.track_title.setText(track.title)
+        self.stage.track_artist.setText(track.artist or "")
+
+        # Album artwork
+        if track.album_id:
+            conn = get_connection()
+            row = conn.execute(
+                "SELECT artwork_blob FROM albums WHERE id = ?", (track.album_id,)
+            ).fetchone()
+            if row and row[0]:
+                pix = QPixmap()
+                if pix.loadFromData(row[0]):
+                    self.stage.ring.set_artwork(pix)
+                    self.player_bar.update_track_info(track.title, track.artist or "", pix)
+                    return
+
+        # Fallback: no artwork
+        self.stage.ring.set_artwork(None)
+
+        # Lyrics
+        self._load_lyrics(track)
+
+        # Save state
+        self.player_engine.save_state()
+
+    def _on_play_toggled(self) -> None:
+        self.player_engine.toggle_play()
+        playing = self.player_engine.is_playing
+        self.player_bar.set_playing(playing)
+        if playing:
+            self.audio_worker.start()
+            self._lyrics_timer.start()
+        else:
+            self._lyrics_timer.stop()
+
+    # ── Lyrics ────────────────────────────────────────────────────────
+
+    def _load_lyrics(self, track: Track) -> None:
+        """Fetch lyrics from DB cache or .lrc sidecar."""
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT lrc_content FROM lyrics WHERE track_id = ?", (track.id,)
+        ).fetchone()
+        lrc_content = row[0] if row else None
+
+        lines = LyricsParser.resolve(track.path or "", lrc_content)
+        self.lyrics_panel.load_lyrics(lines or [])
+
+    def _tick_lyrics(self) -> None:
+        """Called every 300ms to sync lyrics highlight."""
+        if self.player_engine.is_playing:
+            self.lyrics_panel.highlight_line(self.player_engine.position_ms)
+
+    # ── Library scanning ──────────────────────────────────────────────
+
+    def _scan_library(self) -> None:
+        """Run library scanner on configured folders."""
+        if not self._music_folders:
+            # Ask user to configure folders first
+            self.show_view("settings")
+            return
+
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        scanner = LibraryScanner(conn)
+        new, updated = scanner.scan(self._music_folders)
+
+        # Reload views
+        songs_view = self._pages.get("songs")
+        if isinstance(songs_view, SongsView):
+            songs_view.load()
+
+        artists_view = self._pages.get("artists")
+        if isinstance(artists_view, ArtistsView):
+            artists_view.load()
+
+        albums_view = self._pages.get("albums")
+        if isinstance(albums_view, AlbumsView):
+            albums_view.load()
+
+    def add_music_folder(self, folder: str) -> None:
+        """Add a folder to the scan list."""
+        path = Path(folder)
+        if path.is_dir() and path not in self._music_folders:
+            self._music_folders.append(path)
 
 
 if __name__ == "__main__":
