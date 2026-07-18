@@ -3,15 +3,11 @@
 pcm_capture.py — Thread-safe PCM ring buffer from libVLC audio callbacks.
 
 Captures decoded audio samples for FFT processing (FR-4.1) while routing
-audio to the system output.  Depends on `sounddevice` for playback.
+audio to the system output via sounddevice.
 
-Usage:
-    capture = PCMCapture()
-    capture.attach_to_player(player)   # replaces VLC's aout
-    capture.start()
-    # ... later ...
-    samples = capture.read_fft(1024)   # for AudioWorker / numpy FFT
-    capture.stop()
+Because VLC audio callbacks (CFUNCTYPE) cannot wrap bound methods, this
+module uses module-level callback functions that dispatch through a
+module-level singleton reference.
 """
 
 from __future__ import annotations
@@ -19,7 +15,6 @@ from __future__ import annotations
 import ctypes
 import struct
 import threading
-import time
 from collections import deque
 from typing import Optional
 
@@ -29,20 +24,67 @@ import vlc
 try:
     import sounddevice as sd
 except ImportError:
-    sd = None  # playback disabled; FFT capture works via callback alone
+    sd = None
 
 
 SAMPLE_RATE = 44100
 CHANNELS = 2
-FORMAT = "S16N"          # signed 16-bit native endian
-SAMPLE_WIDTH = 2         # 16-bit = 2 bytes
+FORMAT = "S16N"
+SAMPLE_WIDTH = 2
+
+# Module-level singleton: set by PCMCapture, used by C callbacks
+_capture_instance: Optional["PCMCapture"] = None
+_capture_lock = threading.Lock()
+
+
+def _play_cb(data_ptr, samples_ptr, count, pts):
+    inst = _get_inst()
+    if inst:
+        inst._play_cb(samples_ptr, count, pts)
+
+
+def _pause_cb(data_ptr, pts):
+    inst = _get_inst()
+    if inst:
+        inst._pause_cb(pts)
+
+
+def _resume_cb(data_ptr, pts):
+    inst = _get_inst()
+    if inst:
+        inst._resume_cb(pts)
+
+
+def _flush_cb(data_ptr, pts):
+    inst = _get_inst()
+    if inst:
+        inst._flush_cb(pts)
+
+
+def _drain_cb(data_ptr):
+    inst = _get_inst()
+    if inst:
+        inst._drain_cb()
+
+
+def _get_inst():
+    with _capture_lock:
+        return _capture_instance
+
+
+# Pre-created ctypes function pointers (using vlc's CFUNCTYPE types)
+_CB_PLAY = vlc.AudioPlayCb(_play_cb)
+_CB_PAUSE = vlc.AudioPauseCb(_pause_cb)
+_CB_RESUME = vlc.AudioResumeCb(_resume_cb)
+_CB_FLUSH = vlc.AudioFlushCb(_flush_cb)
+_CB_DRAIN = vlc.AudioDrainCb(_drain_cb)
 
 
 class PCMCapture:
     """Wraps VLC audio callbacks → ring buffer (+ optional sounddevice out)."""
 
     def __init__(self, max_samples: int = 32768) -> None:
-        self._buffer: deque[float] = deque(maxlen=max_samples)  # mono mixdown
+        self._buffer: deque[float] = deque(maxlen=max_samples)
         self._lock = threading.Lock()
         self._running = False
         self._format_set = False
@@ -51,14 +93,13 @@ class PCMCapture:
     # ── Public API ────────────────────────────────────────────────────
 
     def attach_to_player(self, player) -> None:
-        """Replace VLC's audio output with our callbacks (playback + capture)."""
+        global _capture_instance
+        with _capture_lock:
+            _capture_instance = self
+
         player.audio_set_format(FORMAT, SAMPLE_RATE, CHANNELS)
         player.audio_set_callbacks(
-            self._play_cb,
-            self._pause_cb,
-            self._resume_cb,
-            self._flush_cb,
-            self._drain_cb,
+            _CB_PLAY, _CB_PAUSE, _CB_RESUME, _CB_FLUSH, _CB_DRAIN,
             ctypes.c_void_p(0),
         )
         self._format_set = True
@@ -80,10 +121,10 @@ class PCMCapture:
             self._sd_stream.stop()
             self._sd_stream.close()
             self._sd_stream = None
-        self._buffer.clear()
+        with self._lock:
+            self._buffer.clear()
 
     def read_fft(self, n: int = 1024) -> np.ndarray | None:
-        """Return up to *n* mono float samples (0..1) for FFT, or None."""
         with self._lock:
             if len(self._buffer) < n:
                 return None
@@ -93,51 +134,44 @@ class PCMCapture:
 
     # ── VLC callbacks ─────────────────────────────────────────────────
 
-    def _play_cb(self, data: ctypes.c_void_p, samples_ptr, count: int, pts) -> None:
-        """Called by libVLC with decoded PCM data."""
+    def _play_cb(self, samples_ptr, count: int, pts: int) -> None:
         if not self._running or count <= 0:
             return
         try:
             raw = ctypes.string_at(samples_ptr, count * CHANNELS * SAMPLE_WIDTH)
-            frame_count = count  # per-channel
-            fmt = f"<{frame_count * CHANNELS}h" if struct.pack("=h", 1)[0] == 1 else f">{frame_count * CHANNELS}h"
+            frame_count = count
+            fmt = "<" if struct.pack("=h", 1)[0] == 1 else ">"
+            fmt += f"{frame_count * CHANNELS}h"
             ints = struct.unpack(fmt, raw)
         except Exception:
             return
 
-        # Mix down to mono + normalise
         mono = [(ints[i] + ints[i + 1]) / 65536.0
                 for i in range(0, len(ints), CHANNELS)]
 
         with self._lock:
             self._buffer.extend(mono)
 
-        # Forward to sounddevice for audio output
         if self._sd_stream and sd is not None:
             try:
-                # Blocking write keeps callback under control
-                sd_stream = self._sd_stream
-                if sd_stream is not None:
+                s = self._sd_stream
+                if s is not None:
                     arr = np.frombuffer(raw, dtype=np.int16).reshape(-1, CHANNELS)
-                    sd_stream.write(arr)
+                    s.write(arr)
             except Exception:
                 pass
 
-    def _pause_cb(self, data, pts) -> None:
-        """Pause notification — passthrough to sounddevice."""
+    def _pause_cb(self, pts: int) -> None:
         if self._sd_stream and sd is not None:
             self._sd_stream.stop()
 
-    def _resume_cb(self, data, pts) -> None:
-        """Resume notification."""
+    def _resume_cb(self, pts: int) -> None:
         if self._sd_stream and sd is not None and not self._sd_stream.active:
             self._sd_stream.start()
 
-    def _flush_cb(self, data, pts) -> None:
-        """Discard pending buffers."""
+    def _flush_cb(self, pts: int) -> None:
         with self._lock:
             self._buffer.clear()
 
-    def _drain_cb(self, data) -> None:
-        """Drain remaining — no-op (buffer auto-drains)."""
+    def _drain_cb(self) -> None:
         pass
