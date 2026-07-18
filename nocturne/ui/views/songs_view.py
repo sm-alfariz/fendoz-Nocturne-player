@@ -15,7 +15,7 @@ from nocturne.ui.theme.tokens import Color
 
 
 class SongTableModel(QAbstractTableModel):
-    COLUMNS = ["#", "Title", "Artist", "Album", "Duration", "Added"]
+    COLUMNS = ["#", "Title", "Artist", "Album", "Duration", "Src", "Added"]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -53,7 +53,9 @@ class SongTableModel(QAbstractTableModel):
                 return "--:--"
             m, s = divmod(int(t.duration_ms) // 1000, 60)
             return f"{m}:{s:02d}"
-        if col == 5: return str(t.added_at)[:10] if t.added_at else ""
+        if col == 5:
+            return "Online" if t.source_type == "soundcloud" else ""
+        if col == 6: return str(t.added_at)[:10] if t.added_at else ""
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):

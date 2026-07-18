@@ -152,6 +152,15 @@ class TopBar(QWidget):
         self.settings_btn.setStyleSheet(self.notif_btn.styleSheet())
         layout.addWidget(self.settings_btn)
 
+        # SoundCloud button
+        self.sc_btn = QPushButton()
+        self.sc_btn.setIcon(FIF.CLOUD.icon())
+        self.sc_btn.setFixedSize(36, 36)
+        self.sc_btn.setFlat(True)
+        self.sc_btn.setStyleSheet(self.notif_btn.styleSheet())
+        self.sc_btn.setToolTip("Add from SoundCloud")
+        layout.addWidget(self.sc_btn)
+
         # Avatar
         self.avatar = QLabel("EF")
         self.avatar.setFixedSize(36, 36)
@@ -329,6 +338,7 @@ class MainWindow(QWidget):
         # ── Top bar connections ────────────────────────────────────────
         self.top_bar.settings_btn.clicked.connect(lambda: self.show_view("settings"))
         self.top_bar.search.textChanged.connect(self._on_search)
+        self.top_bar.sc_btn.clicked.connect(self._open_soundcloud_dialog)
 
         # ── Signal bus connections ────────────────────────────────────
         signalBus.folder_added.connect(self._on_folder_added)
@@ -415,12 +425,47 @@ class MainWindow(QWidget):
         self._switch_to(key)
         self.sidebar.nav.setCurrentItem(key)
 
+    def _open_soundcloud_dialog(self) -> None:
+        """Open SoundCloud URL dialog and play the resolved track."""
+        from PySide6.QtWidgets import QDialog
+        from qfluentwidgets import InfoBar
+        from nocturne.ui.components.soundcloud_dialog import SoundCloudDialog
+        from nocturne.integrations.soundcloud.resolver import get_stream
+        from nocturne.data.db import upsert_sc_track
+
+        dialog = SoundCloudDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        tracks_meta = dialog.tracks
+        if not tracks_meta:
+            return
+
+        # Play first track
+        first_meta = tracks_meta[0]
+        if "stream_url" not in first_meta:
+            first_meta["stream_url"] = get_stream(
+                first_meta.get("source_url", "")
+            )
+        if not first_meta.get("stream_url"):
+            InfoBar.error(
+                "Playback failed",
+                "Could not get stream URL",
+                parent=self,
+            )
+            return
+
+        track = upsert_sc_track(first_meta)
+        self._play_track(track)
+
     # ── Playback ──────────────────────────────────────────────────────
 
     def _play_track(self, track: Track) -> None:
         """Play a single track."""
-        if not track.path or not Path(track.path).exists():
-            return
+        if track.source_type == "local":
+            if not track.path or not Path(track.path).exists():
+                return
+        # soundcloud tracks: path is a URL, skip file check
 
         self._current_track = track
         self.player_engine.load_single(track.path)

@@ -46,11 +46,15 @@ class PlaylistDetail(QWidget):
         top.addWidget(self.title_label)
         top.addStretch()
 
+        self.add_sc_btn = QPushButton("Add from URL")
+        self.add_sc_btn.setFixedHeight(30)
+        self.add_sc_btn.clicked.connect(self._add_soundcloud)
         self.add_btn = QPushButton("Add Track")
         self.add_btn.setFixedHeight(30)
         self.del_btn = QPushButton("Delete Playlist")
         self.del_btn.setStyleSheet("color: #F472B6;")
         self.del_btn.setFixedHeight(30)
+        top.addWidget(self.add_sc_btn)
         top.addWidget(self.add_btn)
         top.addWidget(self.del_btn)
         layout.addLayout(top)
@@ -78,9 +82,31 @@ class PlaylistDetail(QWidget):
         self._tracks = pm.get_tracks(playlist_id)
         self.track_list.clear()
         for t in self._tracks:
-            item = QListWidgetItem(f"{t.title or '?'}  —  {t.artist or '?'}")
+            prefix = "🌐 " if t.source_type == "soundcloud" else ""
+            item = QListWidgetItem(f"{prefix}{t.title or '?'}  —  {t.artist or '?'}")
             item.setData(Qt.UserRole, t.id)
             self.track_list.addItem(item)
+
+    def _add_soundcloud(self) -> None:
+        """Open SoundCloud dialog and add resolved tracks to this playlist."""
+        if self._playlist_id is None:
+            return
+        from PySide6.QtWidgets import QDialog
+        from nocturne.ui.components.soundcloud_dialog import SoundCloudDialog
+        from nocturne.data.db import upsert_sc_track
+        from nocturne.data.playlist_manager import PlaylistManager
+
+        dialog = SoundCloudDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        pm = PlaylistManager()
+        from nocturne.integrations.soundcloud.resolver import get_stream
+        for meta in dialog.tracks:
+            if "stream_url" not in meta:
+                meta["stream_url"] = get_stream(meta.get("source_url", ""))
+            track = upsert_sc_track(meta)
+            pm.add_track(self._playlist_id, track.id)
+        self.load(self._playlist_id)
 
     def _on_double_click(self, index) -> None:
         row = index.row()

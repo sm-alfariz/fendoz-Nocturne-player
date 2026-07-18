@@ -123,3 +123,49 @@ def get_connection() -> sqlite3.Connection:
     conn = init_db(get_db_path())
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def upsert_sc_track(data: dict) -> "Track":
+    """Insert or update a SoundCloud track in the database.
+
+    Deduplicates by source_url (SoundCloud permalink is stable).
+    Returns a Track model.
+    """
+    from nocturne.data.models import Track
+
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT * FROM tracks WHERE source_url = ?", (data.get("source_url"),)
+    ).fetchone()
+
+    if existing:
+        stream_url = data.get("stream_url")
+        if stream_url:
+            conn.execute(
+                "UPDATE tracks SET path = ? WHERE source_url = ?",
+                (stream_url, data.get("source_url")),
+            )
+            conn.commit()
+        track = Track.from_row(
+            conn.execute(
+                "SELECT * FROM tracks WHERE source_url = ?", (data.get("source_url"),)
+            ).fetchone()
+        )
+    else:
+        cursor = conn.execute(
+            """INSERT INTO tracks (path, title, artist, duration_ms, source_type, source_url)
+               VALUES (?, ?, ?, ?, 'soundcloud', ?)""",
+            (
+                data.get("stream_url"),
+                data.get("title", ""),
+                data.get("artist"),
+                data.get("duration_ms", 0),
+                data.get("source_url"),
+            ),
+        )
+        conn.commit()
+        track_id = cursor.lastrowid
+        row = conn.execute("SELECT * FROM tracks WHERE id = ?", (track_id,)).fetchone()
+        track = Track.from_row(row)
+
+    return track

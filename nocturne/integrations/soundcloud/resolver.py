@@ -196,11 +196,17 @@ def resolve_url(url: str) -> Optional[dict]:
     """Resolve a SoundCloud URL → track metadata dict.
 
     Tries API v2 first, falls back to oEmbed.
+    Returns dict with keys: title, artist, artwork_url, duration_ms,
+    source_url, source_type, and stream_url (API v2 only, oEmbed excludes it).
     """
     # Extract track ID from URL via resolve endpoint
     result = _api_get(f"/resolve", {"url": url})
     if result and result.get("kind") == "track":
-        return _parse_track(result)
+        meta = _parse_track(result)
+        stream = _extract_stream_url(result)
+        if stream:
+            meta["stream_url"] = stream
+        return meta
 
     # Fallback: oEmbed (less metadata but no auth)
     return _resolve_oembed(url)
@@ -213,24 +219,7 @@ def get_stream(url: str) -> Optional[str]:
     """
     result = _api_get(f"/resolve", {"url": url})
     if result:
-        media = result.get("media", {})
-        if isinstance(media, dict):
-            transcodings = media.get("transcodings", [])
-            # Prefer progressive MP3 over HLS
-            preferred = None
-            fallback = None
-            for t in transcodings:
-                fmt = t.get("format", {})
-                protocol = fmt.get("protocol", "")
-                url = t.get("url", "")
-                if protocol == "progressive":
-                    preferred = t
-                    break
-                elif protocol == "hls" and not fallback:
-                    fallback = t
-            target = preferred or fallback
-            if target:
-                return _resolve_transcoding(target["url"])
+        return _extract_stream_url(result)
     return None
 
 
@@ -250,6 +239,29 @@ def _resolve_transcoding(transcoding_url: str) -> Optional[str]:
     except Exception as e:
         logger.warning("Transcoding resolution failed: %s", e)
         return None
+
+
+def _extract_stream_url(data: dict) -> Optional[str]:
+    """Extract a direct playable stream URL from an API track response."""
+    media = data.get("media", {})
+    if not isinstance(media, dict):
+        return None
+    transcodings = media.get("transcodings", [])
+    preferred = None
+    fallback = None
+    for t in transcodings:
+        fmt = t.get("format", {})
+        protocol = fmt.get("protocol", "")
+        t_url = t.get("url", "")
+        if protocol == "progressive":
+            preferred = t
+            break
+        elif protocol == "hls" and not fallback:
+            fallback = t
+    target = preferred or fallback
+    if target:
+        return _resolve_transcoding(target["url"])
+    return None
 
 
 def search(query: str, limit: int = 10) -> list[dict]:

@@ -33,6 +33,18 @@ class Track:
         keys = [k for k in row.keys() if k in field_names]
         return cls(**dict(zip(keys, [row[k] for k in keys])))
 
+    @classmethod
+    def from_sc_dict(cls, data: dict) -> Track:
+        """Build a Track from a SoundCloud metadata dict."""
+        return cls(
+            path=data.get("stream_url"),
+            title=data.get("title", ""),
+            artist=data.get("artist"),
+            duration_ms=data.get("duration_ms", 0),
+            source_type="soundcloud",
+            source_url=data.get("source_url"),
+        )
+
 
 @dataclass
 class Album:
