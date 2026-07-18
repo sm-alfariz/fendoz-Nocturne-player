@@ -8,11 +8,10 @@ Single audio engine — no fallback to QMediaPlayer (05-system-architecture.md).
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
-from typing import Optional
 
+import numpy as np
 import vlc
 
 from nocturne.data.db import get_db_path
@@ -53,12 +52,15 @@ class PlayerEngine:
     # ── Playback control ──────────────────────────────────────────────
 
     def play(self) -> None:
+        self._pcm.start()
         self._list_player.play()
 
     def pause(self) -> None:
+        self._pcm.stop()
         self._list_player.pause()
 
     def stop(self) -> None:
+        self._pcm.stop()
         self._list_player.stop()
 
     def toggle_play(self) -> None:
@@ -138,6 +140,7 @@ class PlayerEngine:
             self._list.add_media(self._instance.media_new(p))
         self._playlist = paths
         self._list_player.set_media_list(self._list)
+        self._pcm.start()
         self._list_player.play_item_at_index(start_index)
 
     def load_single(self, path: str) -> None:

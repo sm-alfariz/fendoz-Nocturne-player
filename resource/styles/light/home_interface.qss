@@ -8,12 +8,49 @@ QScrollArea {
     background-color: transparent;
 }
 
+BannerWidget {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+}
 
 BannerWidget > #galleryLabel {
-    font: 42px 'Segoe UI SemiBold', 'Microsoft YaHei SemiBold';
+    font: 700 28px 'Sora', 'Segoe UI SemiBold', 'Microsoft YaHei SemiBold';
     background-color: transparent;
-    color: black;
-    padding-left: 28px;
+    color: #0F172A;
+}
+
+BannerWidget > #bannerSubtitle {
+    font: 500 12px 'Inter', 'Segoe UI';
+    color: #44526A;
+}
+
+#miniStatCard {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(79, 195, 247, 0.16);
+    border-radius: 16px;
+}
+
+#homeRingVisualizer {
+    background: transparent;
+    border: none;
+}
+
+#cardTitle {
+    font: 600 11px 'Inter', 'Segoe UI';
+    color: #1E88E5;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#cardValue {
+    font: 700 22px 'Sora', 'Segoe UI';
+    color: #0F172A;
+}
+
+#cardSubtitle {
+    font: 500 11px 'Inter', 'Segoe UI';
+    color: #51607A;
 }
 
 

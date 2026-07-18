@@ -22,7 +22,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -30,7 +30,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QSplitter,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -40,13 +39,9 @@ from qfluentwidgets import (
     NavigationInterface,
     NavigationItemPosition,
     NavigationAvatarWidget,
-    NavigationPushButton,
-    SearchLineEdit,
 )
 
-import vlc
-
-from nocturne.config.config import ROOT, cfg
+from nocturne.config.config import ROOT
 from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.components.lyrics_panel import LyricsPanel
 from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
@@ -343,6 +338,7 @@ class MainWindow(QWidget):
         # ── Audio worker → visualizer + spectrum ──────────────────────
         self.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
         self.audio_worker.spectrum_ready.connect(self.stage.spectrum.set_spectrum)
+        self.audio_worker.spectrum_ready.connect(self._pages["home"].set_spectrum)
 
         # ── Resume playback on startup (deferred — Qt event loop must be running) ─
         QTimer.singleShot(0, self._resume_playback)
@@ -490,7 +486,9 @@ class MainWindow(QWidget):
     def _on_track_changed(self, track: Track) -> None:
         """Update all UI when track changes."""
         self.player_bar.set_playing(True)
-        self.audio_worker.start()
+        self._pages["home"].set_playing(True)
+        if not self.audio_worker.isRunning():
+            self.audio_worker.start()
         self._lyrics_timer.start()
 
         # Player bar
@@ -502,6 +500,9 @@ class MainWindow(QWidget):
         # Stage
         self.stage.track_title.setText(track.title)
         self.stage.track_artist.setText(track.artist or "")
+        home_view = self._pages.get("home")
+        if hasattr(home_view, "set_track_info"):
+            home_view.set_track_info(track.title, track.artist or "")
 
         # Highlight in songs view
         songs = self._pages.get("songs")
@@ -532,10 +533,13 @@ class MainWindow(QWidget):
 
     def _on_play_toggled(self, playing: bool) -> None:
         self.player_bar.set_playing(playing)
+        self._pages["home"].set_playing(playing)
         if playing:
-            self.audio_worker.start()
+            if not self.audio_worker.isRunning():
+                self.audio_worker.start()
             self._lyrics_timer.start()
         else:
+            self.audio_worker.stop()
             self._lyrics_timer.stop()
 
     def _on_folder_added(self, folder: str) -> None:

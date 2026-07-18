@@ -1,104 +1,72 @@
 # coding:utf-8
 """
-home_interface.py — Home page: BannerWidget (gradient + link cards) in ScrollArea.
+home_interface.py — Nocturne home dashboard aligned to the PRD and mockup.
 """
 
 from __future__ import annotations
 
-import os
-
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
-from qfluentwidgets import FluentIcon, ScrollArea, isDarkTheme
+
+import numpy as np
 
 from nocturne.common.style_sheet import StyleSheet
-from nocturne.ui.components.link_card import LinkCardView
-from nocturne.config.config import EXAMPLE_URL, FEEDBACK_URL, HELP_URL, REPO_URL, ROOT
+from nocturne.ui.components.ring_visualizer import RingVisualizer
+from qfluentwidgets import ScrollArea
 
 
 class BannerWidget(QWidget):
-    """Banner widget"""
+    """Mockup-aligned Home stage using the full ring visualizer composition."""
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.setFixedHeight(336)
+        self.setFixedHeight(520)
 
         self.vBoxLayout = QVBoxLayout(self)
-        self.galleryLabel = QLabel("FdZ PySide6 + qfluentwidgets ", self)
-        self.banner = QPixmap(os.path.join(ROOT, "resource/img/header1.png"))
-        self.linkCardView = LinkCardView(self)
+        self.vBoxLayout.setContentsMargins(24, 12, 24, 18)
+        self.vBoxLayout.setSpacing(10)
+        self.vBoxLayout.setAlignment(Qt.AlignCenter)
 
+        self.galleryLabel = QLabel("Continue Listening", self)
         self.galleryLabel.setObjectName("galleryLabel")
-
-        self.vBoxLayout.setSpacing(0)
-        self.vBoxLayout.setContentsMargins(0, 20, 0, 0)
+        self.galleryLabel.setAlignment(Qt.AlignCenter)
         self.vBoxLayout.addWidget(self.galleryLabel)
-        self.vBoxLayout.addWidget(self.linkCardView, 1, Qt.AlignBottom)
-        self.vBoxLayout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
-        self.linkCardView.addCard(
-            os.path.join(ROOT, "resource/img/icon.png"),
-            self.tr("Getting started"),
-            self.tr("An overview of app development options and samples."),
-            HELP_URL,
+        self.subtitle = QLabel(
+            "Resume the current flow and keep the visualizer alive while playback is running.",
+            self,
         )
+        self.subtitle.setObjectName("bannerSubtitle")
+        self.subtitle.setWordWrap(True)
+        self.subtitle.setAlignment(Qt.AlignCenter)
+        self.vBoxLayout.addWidget(self.subtitle)
 
-        self.linkCardView.addCard(
-            FluentIcon.GITHUB,
-            self.tr("GitHub repo"),
-            self.tr("The latest fluent design controls and styles for your applications."),
-            REPO_URL,
-        )
+        self.visualizer = RingVisualizer(self)
+        self.visualizer.setObjectName("homeRingVisualizer")
+        self.visualizer.setFixedSize(360, 360)
+        self.visualizer.setVisible(False)
+        self.vBoxLayout.addWidget(self.visualizer, 0, Qt.AlignCenter)
+        self.vBoxLayout.addStretch()
 
-        self.linkCardView.addCard(
-            FluentIcon.CODE,
-            self.tr("Code samples"),
-            self.tr("Find samples that demonstrate specific tasks, features and APIs."),
-            EXAMPLE_URL,
-        )
-
-        self.linkCardView.addCard(
-            FluentIcon.FEEDBACK,
-            self.tr("Send feedback"),
-            self.tr("Help us improve PyQt-Fluent-Widgets by providing feedback."),
-            FEEDBACK_URL,
-        )
-
-    def paintEvent(self, e):
-        super().paintEvent(e)
-        painter = QPainter(self)
-        painter.setRenderHints(QPainter.SmoothPixmapTransform | QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-
-        path = QPainterPath()
-        path.setFillRule(Qt.WindingFill)
-        w, h = self.width(), self.height()
-        path.addRoundedRect(QRectF(0, 0, w, h), 10, 10)
-        path.addRect(QRectF(0, h - 50, 50, 50))
-        path.addRect(QRectF(w - 50, 0, 50, 50))
-        path.addRect(QRectF(w - 50, h - 50, 50, 50))
-        path = path.simplified()
-
-        gradient = QLinearGradient(0, 0, 0, h)
-
-        if not isDarkTheme():
-            gradient.setColorAt(0, QColor(207, 216, 228, 255))
-            gradient.setColorAt(1, QColor(207, 216, 228, 0))
+    def set_track_info(self, title: str, artist: str = "") -> None:
+        if title:
+            self.galleryLabel.setText(title)
+            self.subtitle.setText(artist or "Now playing")
         else:
-            gradient.setColorAt(0, QColor(0, 0, 0, 255))
-            gradient.setColorAt(1, QColor(0, 0, 0, 0))
+            self.galleryLabel.setText("Continue Listening")
+            self.subtitle.setText(
+                "Resume the current flow and keep the visualizer alive while playback is running."
+            )
 
-        painter.fillPath(path, QBrush(gradient))
+    def set_spectrum(self, data: np.ndarray) -> None:
+        self.visualizer.set_spectrum(data)
 
-        pixmap = self.banner.scaled(
-            self.size(), Qt.IgnoreAspectRatio, Qt.SmoothTransformation
-        )
-        painter.fillPath(path, QBrush(pixmap))
+    def set_playing(self, playing: bool) -> None:
+        self.visualizer.setVisible(playing)
 
 
 class HomeInterface(ScrollArea):
-    """Home interface"""
+    """Home dashboard interface."""
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -121,3 +89,12 @@ class HomeInterface(ScrollArea):
         self.vBoxLayout.setSpacing(40)
         self.vBoxLayout.addWidget(self.banner)
         self.vBoxLayout.setAlignment(Qt.AlignTop)
+
+    def set_track_info(self, title: str, artist: str = "") -> None:
+        self.banner.set_track_info(title, artist)
+
+    def set_spectrum(self, data: np.ndarray) -> None:
+        self.banner.set_spectrum(data)
+
+    def set_playing(self, playing: bool) -> None:
+        self.banner.set_playing(playing)
