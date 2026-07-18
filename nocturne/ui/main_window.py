@@ -376,7 +376,7 @@ class MainWindow(QWidget):
                 routeKey=route_key,
                 text=label,
                 icon=icon,
-                onClick=lambda k=key: self._switch_to(k),
+                onClick=lambda k=key, _key=key: self._switch_to(_key),
             )
             if key in ("settings", "equalizer"):
                 kwargs["position"] = NavigationItemPosition.BOTTOM
