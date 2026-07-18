@@ -10,12 +10,15 @@ back to the default input stream, which still keeps the UI animated.
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from collections import deque
 from typing import Optional
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 try:
     import sounddevice as sd
