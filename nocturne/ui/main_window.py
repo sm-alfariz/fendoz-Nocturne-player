@@ -291,6 +291,7 @@ class MainWindow(QWidget):
         for key, label, icon, route in self.NAV_ITEMS:
             if key == "home":
                 w = HomeInterface(self)
+                w.track_activated.connect(self._play_track)
             elif key == "songs":
                 w = SongsView(self)
                 w.track_activated.connect(self._play_track)
@@ -612,6 +613,15 @@ class MainWindow(QWidget):
 
         # Fallback: no artwork
         self.stage.ring.set_artwork(None)
+
+        # Record play history
+        if track.id:
+            conn = get_connection()
+            conn.execute(
+                "INSERT INTO play_history (track_id, duration_played_ms) VALUES (?, ?)",
+                (track.id, 0),
+            )
+            conn.commit()
 
         # Lyrics
         self._load_lyrics(track)

@@ -5,14 +5,80 @@ home_interface.py — Nocturne home dashboard aligned to the PRD and mockup.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+import sqlite3
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 import numpy as np
 
 from nocturne.common.style_sheet import StyleSheet
+from nocturne.data.db import get_connection
+from nocturne.data.models import Track
 from nocturne.ui.components.ring_visualizer import RingVisualizer
 from qfluentwidgets import ScrollArea
+
+from nocturne.ui.theme.tokens import Color
+
+
+class _Card(QPushButton):
+    """Small clickable card for history/playlist items."""
+
+    def __init__(self, title: str, subtitle: str = "", parent=None):
+        super().__init__(parent)
+        self.setFixedSize(160, 90)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setStyleSheet(
+            f"QPushButton{{background:{Color.CARD};border:1px solid {Color.BORDER};"
+            f"border-radius:11px;text-align:left;padding:12px;}}"
+            f"QPushButton:hover{{border-color:{Color.ACCENT};}}"
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(4)
+        t = QLabel(title)
+        t.setWordWrap(True)
+        t.setStyleSheet(
+            f"font-size:13px;font-weight:600;color:{Color.TEXT_PRIMARY};background:transparent;"
+        )
+        layout.addWidget(t)
+        if subtitle:
+            s = QLabel(subtitle)
+            s.setStyleSheet(f"font-size:11px;color:{Color.TEXT_DIM};background:transparent;")
+            layout.addWidget(s)
+        layout.addStretch()
+
+
+class _Section(QWidget):
+    """A labelled horizontal row of cards."""
+
+    def __init__(self, heading: str, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+
+        header = QLabel(heading)
+        header.setStyleSheet(
+            f"font-size:18px;font-weight:700;color:{Color.TEXT_PRIMARY};background:transparent;"
+        )
+        layout.addWidget(header)
+
+        self.card_row = QHBoxLayout()
+        self.card_row.setSpacing(12)
+        self.card_row.setAlignment(Qt.AlignLeft)
+        layout.addLayout(self.card_row)
+
+    def add_card(self, title: str, subtitle: str = "") -> _Card:
+        card = _Card(title, subtitle)
+        self.card_row.addWidget(card)
+        return card
+
+    def clear(self) -> None:
+        while self.card_row.count():
+            item = self.card_row.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()
 
 
 class BannerWidget(QWidget):
@@ -68,6 +134,8 @@ class BannerWidget(QWidget):
 class HomeInterface(ScrollArea):
     """Home dashboard interface."""
 
+    track_activated = Signal(object)  # Track
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.banner = BannerWidget(self)
@@ -89,6 +157,63 @@ class HomeInterface(ScrollArea):
         self.vBoxLayout.setSpacing(40)
         self.vBoxLayout.addWidget(self.banner)
         self.vBoxLayout.setAlignment(Qt.AlignTop)
+
+    def load(self) -> None:
+        """Populate content rows: Continue Listening + Playlists."""
+        self._clear_sections()
+
+        conn = get_connection()
+
+        # ── Continue Listening ───────────────────────────────────────
+        rows = conn.execute(
+            "SELECT DISTINCT t.id, t.title, t.artist "
+            "FROM play_history ph "
+            "JOIN tracks t ON t.id = ph.track_id "
+            "ORDER BY ph.played_at DESC LIMIT 5"
+        ).fetchall()
+
+        if rows:
+            sec = _Section("Continue Listening", self.view)
+            for track_id, title, artist in rows:
+                card = sec.add_card(title or "?", artist or "")
+                card.clicked.connect(
+                    lambda checked=False, tid=track_id: self._play_history_track(tid)
+                )
+            self.vBoxLayout.insertWidget(1, sec)
+
+        # ── Playlists ────────────────────────────────────────────────
+        pl_rows = conn.execute(
+            "SELECT id, name FROM playlists ORDER BY created_at DESC LIMIT 6"
+        ).fetchall()
+
+        if pl_rows:
+            sec = _Section("Playlists", self.view)
+            for pl_id, name in pl_rows:
+                card = sec.add_card(name)
+                card.clicked.connect(
+                    lambda checked=False, pid=pl_id: self._open_playlist(pid)
+                )
+            self.vBoxLayout.insertWidget(2 if rows else 1, sec)
+
+    def _clear_sections(self) -> None:
+        """Remove dynamically added sections (keep banner at index 0)."""
+        while self.vBoxLayout.count() > 1:
+            item = self.vBoxLayout.takeAt(self.vBoxLayout.count() - 1)
+            if item and item.widget():
+                item.widget().deleteLater()
+
+    def _play_history_track(self, track_id: int) -> None:
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM tracks WHERE id = ?", (track_id,)).fetchone()
+        if row:
+            track = Track.from_row(row)
+            self.track_activated.emit(track)
+
+    def _open_playlist(self, playlist_id: int) -> None:
+        parent = self.parent()
+        if hasattr(parent, "show_view"):
+            parent.show_view("playlist")
 
     def set_track_info(self, title: str, artist: str = "") -> None:
         self.banner.set_track_info(title, artist)
