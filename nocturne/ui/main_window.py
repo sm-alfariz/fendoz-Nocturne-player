@@ -344,8 +344,8 @@ class MainWindow(QWidget):
         self.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
         self.audio_worker.spectrum_ready.connect(self.stage.spectrum.set_spectrum)
 
-        # ── Resume playback on startup ────────────────────────────────
-        self._resume_playback()
+        # ── Resume playback on startup (deferred — Qt event loop must be running) ─
+        QTimer.singleShot(0, self._resume_playback)
 
     def _build_layout(self) -> None:
         vroot = QVBoxLayout(self)
