@@ -60,6 +60,8 @@ class AlbumsView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._filter_text = ""
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
 
@@ -71,14 +73,23 @@ class AlbumsView(QWidget):
         self.grid_layout = FlowLayout(self.grid)
         layout.addWidget(self.grid)
 
+    def _filter(self, text: str) -> None:
+        self._filter_text = text
+        self.load()
+
     def load(self) -> None:
         self._clear_layout()
         conn = get_connection()
-        rows = conn.execute(
+        query = (
             "SELECT a.id, a.title, a.artist, a.artwork_blob, COUNT(t.id) as cnt "
             "FROM albums a LEFT JOIN tracks t ON t.album_id = a.id "
-            "GROUP BY a.id ORDER BY a.title"
-        ).fetchall()
+        )
+        params = []
+        if self._filter_text:
+            query += "WHERE a.title LIKE ? "
+            params.append(f"%{self._filter_text}%")
+        query += "GROUP BY a.id ORDER BY a.title"
+        rows = conn.execute(query, params).fetchall()
         if not rows:
             label = QLabel("Belum ada album.\nScan folder musik di Settings.")
             label.setAlignment(Qt.AlignCenter)

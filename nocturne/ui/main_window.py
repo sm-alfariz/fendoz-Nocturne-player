@@ -338,8 +338,14 @@ class MainWindow(QWidget):
 
         # ── Top bar connections ────────────────────────────────────────
         self.top_bar.settings_btn.clicked.connect(lambda: self.show_view("settings"))
-        self.top_bar.search.textChanged.connect(self._on_search)
+        self.top_bar.search.textChanged.connect(lambda: self._search_timer.start())
         self.top_bar.sc_btn.clicked.connect(self._open_soundcloud_dialog)
+
+        # Search with debounce (150ms)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(150)
+        self._search_timer.timeout.connect(self._on_search_debounced)
 
         # ── Signal bus connections ────────────────────────────────────
         signalBus.folder_added.connect(self._on_folder_added)
@@ -621,11 +627,13 @@ class MainWindow(QWidget):
         if self.player_engine.is_playing:
             self.lyrics_panel.highlight_line(self.player_engine.position_ms)
 
-    def _on_search(self, text: str) -> None:
-        """Filter songs/artists/albums views from top-bar search."""
-        songs = self._pages.get("songs")
-        if hasattr(songs, "_filter"):
-            songs._filter(text)
+    def _on_search_debounced(self) -> None:
+        """Apply search filter after debounce delay."""
+        text = self.top_bar.search.text()
+        for key in ("songs", "artists", "albums"):
+            view = self._pages.get(key)
+            if hasattr(view, "_filter"):
+                view._filter(text)
 
     # ── Library scanning ──────────────────────────────────────────────
 

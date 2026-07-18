@@ -42,6 +42,8 @@ class ArtistsView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._filter_text = ""
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
 
@@ -53,15 +55,24 @@ class ArtistsView(QWidget):
         self.grid_layout = FlowLayout(self.grid)
         layout.addWidget(self.grid)
 
+    def _filter(self, text: str) -> None:
+        self._filter_text = text
+        self.load()
+
     def load(self) -> None:
         # Clear existing
         self._clear_layout()
         conn = get_connection()
-        rows = conn.execute(
+        query = (
             "SELECT artist, COUNT(*) as cnt FROM tracks "
             "WHERE artist IS NOT NULL AND artist != '' "
-            "GROUP BY artist ORDER BY artist"
-        ).fetchall()
+        )
+        params = []
+        if self._filter_text:
+            query += "AND artist LIKE ? "
+            params.append(f"%{self._filter_text}%")
+        query += "GROUP BY artist ORDER BY artist"
+        rows = conn.execute(query, params).fetchall()
         if not rows:
             label = QLabel("Belum ada artis.\nScan folder musik di Settings.")
             label.setAlignment(Qt.AlignCenter)
