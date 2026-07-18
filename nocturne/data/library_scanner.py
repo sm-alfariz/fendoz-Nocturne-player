@@ -37,7 +37,6 @@ class LibraryScanner:
 
     def __init__(self, db_conn: sqlite3.Connection) -> None:
         self._conn = db_conn
-        self._conn.row_factory = sqlite3.Row
         self._signals = ScanSignals()
 
     @property

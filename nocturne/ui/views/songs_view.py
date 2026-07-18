@@ -23,7 +23,6 @@ class SongTableModel(QAbstractTableModel):
     def load(self) -> None:
         self.beginResetModel()
         conn = get_connection()
-        conn.row_factory = __import__("sqlite3").Row
         rows = conn.execute(
             "SELECT t.*, a.title AS album_title FROM tracks t "
             "LEFT JOIN albums a ON t.album_id = a.id "

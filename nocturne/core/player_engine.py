@@ -24,7 +24,11 @@ class PlayerEngine:
     _STATE_FILE = "playback_state.json"
 
     def __init__(self) -> None:
-        self._instance = vlc.Instance()
+        import platform
+        vlc_args = []
+        if platform.system() == "Linux":
+            vlc_args = ["--no-xlib", "--aout=auto", "--quiet"]
+        self._instance = vlc.Instance(*vlc_args)
         self._player = self._instance.media_player_new()
         self._list_player = self._instance.media_list_player_new()
         self._list = self._instance.media_list_new()
@@ -133,8 +137,11 @@ class PlayerEngine:
         self._list_player.play_item_at_index(start_index)
 
     def load_single(self, path: str) -> None:
-        """Load and play a single file."""
-        self.load_playlist([path], 0)
+        """Load and play a single file using direct player (not list player)."""
+        self._player.stop()
+        media = self._instance.media_new(path)
+        self._player.set_media(media)
+        self._player.play()
 
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 

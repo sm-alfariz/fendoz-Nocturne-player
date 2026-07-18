@@ -116,8 +116,10 @@ def migrate(conn: sqlite3.Connection, current_version: int) -> None:
 
 
 def get_connection() -> sqlite3.Connection:
-    """Return a thread-safe connection (call from main thread only).
+    """Return a connection with Row factory (call from main thread only).
 
     For worker threads, create a separate connection with ``check_same_thread=False``.
     """
-    return init_db(get_db_path())
+    conn = init_db(get_db_path())
+    conn.row_factory = sqlite3.Row
+    return conn
