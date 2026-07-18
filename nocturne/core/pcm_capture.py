@@ -37,18 +37,22 @@ class PCMCapture:
         self._channels = 1
 
     def _resolve_device(self) -> str | None:
-        if sd is None:
-            return None
-
+        """Find the PulseAudio monitor source for the default sink."""
         try:
-            devices = sd.query_devices()
-        except Exception:
-            return None
-
-        for device in devices:
-            name = str(device.get("name", "")).lower()
-            if any(k in name for k in ("monitor", "loopback", "pipewire", "pulse")):
-                return device.get("name")
+            import subprocess
+            result = subprocess.run(
+                ["pactl", "info"],
+                capture_output=True, text=True, timeout=3,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if "Default Sink:" in line:
+                        sink = line.split(":", 1)[1].strip()
+                        logger.info("PulseAudio default sink: %s", sink)
+                        monitor = f"{sink}.monitor"
+                        return monitor
+        except Exception as e:
+            logger.warning("pactl failed: %s", e)
         return None
 
     def attach_to_player(self, player) -> None:
