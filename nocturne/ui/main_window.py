@@ -401,6 +401,58 @@ class MainWindow(QWidget):
                 kwargs["position"] = NavigationItemPosition.BOTTOM
             nav.addItem(**kwargs)
 
+        # Playlist Saya section
+        from nocturne.data.playlist_manager import PlaylistManager
+        pm = PlaylistManager()
+        playlists = pm.list_all()
+        if playlists:
+            pl_section = QWidget()
+            pl_layout = QVBoxLayout(pl_section)
+            pl_layout.setContentsMargins(14, 16, 14, 4)
+            pl_layout.setSpacing(2)
+
+            label = QLabel("PLAYLIST SAYA")
+            label.setStyleSheet(
+                f"font-size:10.5px;letter-spacing:1.4px;font-weight:600;"
+                f"color:{Color.TEXT_DIM};background:transparent;"
+            )
+            pl_layout.addWidget(label)
+
+            for pl in playlists:
+                from PySide6.QtGui import QColor, QPainter
+
+                item_w = QWidget()
+                item_layout = QHBoxLayout(item_w)
+                item_layout.setContentsMargins(4, 4, 4, 4)
+                item_layout.setSpacing(8)
+
+                dot = QLabel()
+                dot.setFixedSize(5, 5)
+                dot.setStyleSheet(
+                    f"background:{Color.PRIMARY};border-radius:3px;"
+                )
+                item_layout.addWidget(dot)
+
+                name = QLabel(pl.name)
+                name.setStyleSheet(
+                    f"font-size:12px;color:{Color.TEXT_DIM};background:transparent;"
+                )
+                item_layout.addWidget(name)
+                item_layout.addStretch()
+
+                item_w.setCursor(Qt.PointingHandCursor)
+                pid = pl.id
+                item_w.mouseReleaseEvent = lambda e, _pid=pid: self._nav_playlist_click(_pid)
+
+                pl_layout.addWidget(item_w)
+
+            nav.addWidget(
+                routeKey="playlist_section",
+                widget=pl_section,
+                onClick=lambda: None,
+                position=NavigationItemPosition.SCROLL,
+            )
+
         nav.addSeparator()
         nav.addWidget(
             routeKey="avatar",
@@ -427,6 +479,14 @@ class MainWindow(QWidget):
                     self._pages[key].load_for_track(
                         row["eq_preset"] if row else None
                     )
+
+    def _nav_playlist_click(self, playlist_id: int) -> None:
+        """Navigate to playlist view and select a playlist."""
+        self.show_view("playlist")
+        # Select the playlist in the detail view
+        pl_view = self._pages.get("playlist")
+        if hasattr(pl_view, "detail") and hasattr(pl_view.detail, "load"):
+            pl_view.detail.load(playlist_id)
 
     def show_view(self, key: str) -> None:
         self._switch_to(key)
