@@ -405,22 +405,23 @@ class MainWindow(QWidget):
         from nocturne.data.playlist_manager import PlaylistManager
         pm = PlaylistManager()
         playlists = pm.list_all()
+
+        # Always show the section heading, even when empty
+        from PySide6.QtWidgets import QSizePolicy
+        pl_section = QWidget()
+        pl_layout = QVBoxLayout(pl_section)
+        pl_layout.setContentsMargins(14, 16, 14, 4)
+        pl_layout.setSpacing(2)
+
+        label = QLabel("PLAYLIST SAYA")
+        label.setStyleSheet(
+            f"font-size:10.5px;letter-spacing:1.4px;font-weight:600;"
+            f"color:{Color.TEXT_DIM};background:transparent;"
+        )
+        pl_layout.addWidget(label)
+
         if playlists:
-            pl_section = QWidget()
-            pl_layout = QVBoxLayout(pl_section)
-            pl_layout.setContentsMargins(14, 16, 14, 4)
-            pl_layout.setSpacing(2)
-
-            label = QLabel("PLAYLIST SAYA")
-            label.setStyleSheet(
-                f"font-size:10.5px;letter-spacing:1.4px;font-weight:600;"
-                f"color:{Color.TEXT_DIM};background:transparent;"
-            )
-            pl_layout.addWidget(label)
-
             for pl in playlists:
-                from PySide6.QtGui import QColor, QPainter
-
                 item_w = QWidget()
                 item_layout = QHBoxLayout(item_w)
                 item_layout.setContentsMargins(4, 4, 4, 4)
@@ -446,23 +447,23 @@ class MainWindow(QWidget):
 
                 pl_layout.addWidget(item_w)
 
-            # Wrap in a container for NavigationInterface
-            class _NavContainer(QPushButton):
-                def setSelected(self, selected):
-                    pass
-            pl_container = _NavContainer()
-            pl_container.setFlat(True)
-            pl_container.setStyleSheet("background:transparent;border:none;")
-            pl_layout_container = QVBoxLayout(pl_container)
-            pl_layout_container.setContentsMargins(0, 0, 0, 0)
-            pl_layout_container.addWidget(pl_section)
+        # Always register the nav widget (even empty heading)
+        class _NavContainer(QPushButton):
+            def setSelected(self, selected):
+                pass
+        pl_container = _NavContainer()
+        pl_container.setFlat(True)
+        pl_container.setStyleSheet("background:transparent;border:none;")
+        pl_layout_container = QVBoxLayout(pl_container)
+        pl_layout_container.setContentsMargins(0, 0, 0, 0)
+        pl_layout_container.addWidget(pl_section)
 
-            nav.addWidget(
-                routeKey="playlist_section",
-                widget=pl_container,
-                onClick=lambda: None,
-                position=NavigationItemPosition.SCROLL,
-            )
+        nav.addWidget(
+            routeKey="playlist_section",
+            widget=pl_container,
+            onClick=lambda: None,
+            position=NavigationItemPosition.SCROLL,
+        )
 
         nav.addSeparator()
         nav.addWidget(
