@@ -261,13 +261,11 @@ class SidebarWidget(QWidget):
             self.setStyleSheet(
                 f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
             )
+        # Force parent layout to reflow siblings
         self.updateGeometry()
-        parent = self.parent()
-        if parent:
-            parent.layout().activate()
-            self.setStyleSheet(
-                f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
-            )
+        p = self.parent()
+        if p and p.layout():
+            p.layout().activate()
 
 
 class MainWindow(QWidget):
@@ -380,6 +378,9 @@ class MainWindow(QWidget):
         # ── Resume playback on startup (deferred — Qt event loop must be running) ─
         QTimer.singleShot(0, self._resume_playback)
 
+        # Initial view data load
+        QTimer.singleShot(0, self._load_initial_views)
+
     def _build_layout(self) -> None:
         vroot = QVBoxLayout(self)
         vroot.setContentsMargins(0, 0, 0, 0)
@@ -445,8 +446,6 @@ class MainWindow(QWidget):
     def _switch_to(self, key: str) -> None:
         if key in self._pages:
             self._views.setCurrentWidget(self._pages[key])
-            if hasattr(self._pages[key], "load"):
-                self._pages[key].load()
             if key == "equalizer" and self._current_track:
                 conn = get_connection()
                 row = conn.execute(
@@ -719,6 +718,12 @@ class MainWindow(QWidget):
             (track.id, track.id, offset),
         )
         conn.commit()
+
+    def _load_initial_views(self) -> None:
+        """Initial data load for views that need it."""
+        songs = self._pages.get("songs")
+        if hasattr(songs, "load"):
+            songs.load()
 
     def _tick_lyrics(self) -> None:
         """Called every 300ms to sync lyrics highlight."""
