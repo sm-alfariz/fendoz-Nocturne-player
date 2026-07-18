@@ -254,18 +254,19 @@ class SidebarWidget(QWidget):
 
     def _on_nav_mode_changed(self, mode: NavigationDisplayMode) -> None:
         if mode == NavigationDisplayMode.MINIMAL:
-            self.setFixedWidth(68)
+            self.setMaximumWidth(68)
+            self.setMinimumWidth(68)
             self.setStyleSheet("background:transparent;")
         else:
-            self.setFixedWidth(220)
+            self.setMaximumWidth(220)
+            self.setMinimumWidth(220)
             self.setStyleSheet(
                 f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
             )
-        # Force parent layout to reflow siblings
         self.updateGeometry()
         p = self.parent()
         if p and p.layout():
-            p.layout().activate()
+            p.layout().invalidate()
 
 
 class MainWindow(QWidget):
@@ -721,9 +722,10 @@ class MainWindow(QWidget):
 
     def _load_initial_views(self) -> None:
         """Initial data load for views that need it."""
-        songs = self._pages.get("songs")
-        if hasattr(songs, "load"):
-            songs.load()
+        for key in ("songs", "playlist"):
+            view = self._pages.get(key)
+            if hasattr(view, "load"):
+                view.load()
 
     def _tick_lyrics(self) -> None:
         """Called every 300ms to sync lyrics highlight."""
