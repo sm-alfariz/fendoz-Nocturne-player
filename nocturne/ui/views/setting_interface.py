@@ -123,6 +123,35 @@ class SettingInterface(ScrollArea):
             self.libraryGroup,
         )
 
+        # ── Online ─────────────────────────────────────────────────────
+        self.onlineGroup = SettingCardGroup(
+            self.tr("Online (SoundCloud)"), self.scrollWidget
+        )
+
+        self.onlineToggleCard = SwitchSettingCard(
+            FIF.CLOUD,
+            self.tr("Enable online features"),
+            self.tr("Allow SoundCloud track search, streaming, and URL resolution"),
+            cfg.onlineEnabled,
+            self.onlineGroup,
+        )
+
+        self.cacheOfflineCard = SwitchSettingCard(
+            FIF.CLOUD_DOWNLOAD,
+            self.tr("Cache offline"),
+            self.tr("Save streamed tracks to local cache for offline playback"),
+            cfg.cacheOffline,
+            self.onlineGroup,
+        )
+
+        self.lyricsOnlineCard = SwitchSettingCard(
+            FIF.CHAT,
+            self.tr("Online lyrics lookup"),
+            self.tr("Search for lyrics online when local lyrics are not available"),
+            cfg.lyricsOnline,
+            self.onlineGroup,
+        )
+
         # ── Accessibility ─────────────────────────────────────────────
         self.accessGroup = SettingCardGroup(
             self.tr("Accessibility"), self.scrollWidget
@@ -223,6 +252,9 @@ class SettingInterface(ScrollArea):
         self.materialGroup.addSettingCard(self.blurRadiusCard)
         self.libraryGroup.addSettingCard(self.folderCard)
         self.libraryGroup.addSettingCard(self.scanCard)
+        self.onlineGroup.addSettingCard(self.onlineToggleCard)
+        self.onlineGroup.addSettingCard(self.cacheOfflineCard)
+        self.onlineGroup.addSettingCard(self.lyricsOnlineCard)
         self.accessGroup.addSettingCard(self.reduceMotionCard)
         self.aboutGroup.addSettingCard(self.helpCard)
         self.aboutGroup.addSettingCard(self.feedbackCard)
@@ -234,6 +266,7 @@ class SettingInterface(ScrollArea):
         self.expandLayout.addWidget(self.personalGroup)
         self.expandLayout.addWidget(self.materialGroup)
         self.expandLayout.addWidget(self.libraryGroup)
+        self.expandLayout.addWidget(self.onlineGroup)
         self.expandLayout.addWidget(self.accessGroup)
         self.expandLayout.addWidget(self.aboutGroup)
 

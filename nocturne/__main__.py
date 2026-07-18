@@ -11,6 +11,9 @@ import os
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
 
+from nocturne.utils.crash_handler import install_crash_handler
+install_crash_handler()
+
 QLoggingCategory.setFilterRules("""
     qt.gui.pixmap.warning=false
     qt.qpa.window.warning=false

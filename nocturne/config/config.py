@@ -78,6 +78,11 @@ class Config(QConfig):
     autoSaveNote = ConfigItem("Custom", "AutoSaveNote", False, BoolValidator())
     confirmExit = ConfigItem("Custom", "ConfirmExit", False, BoolValidator())
 
+    # Online / Privacy (Fase 2)
+    onlineEnabled = ConfigItem("Online", "Enabled", False, BoolValidator())
+    cacheOffline = ConfigItem("Online", "CacheOffline", False, BoolValidator())
+    lyricsOnline = ConfigItem("Online", "LyricsOnline", False, BoolValidator())
+
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
