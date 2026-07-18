@@ -704,11 +704,14 @@ class MainWindow(QWidget):
 
     def _on_search_debounced(self) -> None:
         """Apply search filter after debounce delay."""
-        text = self.top_bar.search.text()
+        text = self.top_bar.search.text().strip()
         for key in ("songs", "artists", "albums"):
             view = self._pages.get(key)
             if hasattr(view, "_filter"):
                 view._filter(text)
+        # Switch to Songs view to show results when typing
+        if text and self._views.currentWidget() != self._pages.get("songs"):
+            self._switch_to("songs")
 
     # ── Library scanning ──────────────────────────────────────────────
 
