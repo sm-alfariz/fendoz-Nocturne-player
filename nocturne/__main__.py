@@ -40,6 +40,9 @@ if cfg.get(cfg.dpiScale) != "Auto":
 app = QApplication(sys.argv)
 app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 
+from qfluentwidgets import setTheme, Theme
+setTheme(Theme.DARK)
+
 from nocturne.ui.main_window import MainWindow
 w = MainWindow()
 w.show()

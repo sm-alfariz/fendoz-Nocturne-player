@@ -5,7 +5,6 @@
 
 QWidget {
     font-family: "Inter", "Segoe UI", "Microsoft YaHei", sans-serif;
-    color: #E2E8F0;
 }
 
 /* Card / panel rounded corners */

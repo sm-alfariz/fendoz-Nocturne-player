@@ -9,7 +9,7 @@ shuffle/prev/play/next/repeat with play button gradient.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QPoint, QTimer, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap, QPolygon
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPen, QPixmap, QPolygon
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
