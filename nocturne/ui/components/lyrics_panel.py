@@ -121,17 +121,20 @@ class LyricsPanel(QScrollArea):
         fade_height = 40
         w = self.viewport().width()
 
-        # Top fade: transparent → bg
+        # Top fade: bg (hides content) → transparent (reveals content)
         top_grad = QLinearGradient(0, 0, 0, fade_height)
-        top_grad.setColorAt(0, QColor(Color.BACKGROUND))
-        top_grad.setColorAt(1, QColor(Color.BACKGROUND, 0))
+        bg = QColor(Color.BACKGROUND)
+        bg_transparent = QColor(bg)
+        bg_transparent.setAlpha(0)
+        top_grad.setColorAt(0, bg)
+        top_grad.setColorAt(1, bg_transparent)
         painter.fillRect(0, 0, w, fade_height, top_grad)
 
         # Bottom fade: bg → transparent
         vh = self.viewport().height()
         bot_grad = QLinearGradient(0, vh - fade_height, 0, vh)
-        bot_grad.setColorAt(0, QColor(Color.BACKGROUND, 0))
-        bot_grad.setColorAt(1, QColor(Color.BACKGROUND))
+        bot_grad.setColorAt(0, bg_transparent)
+        bot_grad.setColorAt(1, bg)
         painter.fillRect(0, vh - fade_height, w, fade_height, bot_grad)
 
     def _show_placeholder(self, msg: str = "Lirik tidak ditemukan\nuntuk lagu ini") -> None:
