@@ -414,7 +414,7 @@ class MainWindow(QWidget):
 
         self._current_track = track
         self.player_engine.load_single(track.path)
-        self.player_engine.play()
+        # load_single already calls player.play()
         self._on_track_changed(track)
 
     def _play_artist_tracks(self, artist: str) -> None:

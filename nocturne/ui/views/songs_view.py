@@ -47,7 +47,9 @@ class SongTableModel(QAbstractTableModel):
         if col == 2: return t.artist or ""
         if col == 3: return t.album_title if hasattr(t, "album_title") else ""
         if col == 4:
-            m, s = divmod(t.duration_ms // 1000, 60)
+            if t.duration_ms is None:
+                return "--:--"
+            m, s = divmod(int(t.duration_ms) // 1000, 60)
             return f"{m}:{s:02d}"
         if col == 5: return str(t.added_at)[:10] if t.added_at else ""
         return None

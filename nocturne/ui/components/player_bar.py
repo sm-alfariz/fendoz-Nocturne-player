@@ -217,8 +217,8 @@ class PlayerBar(QWidget):
         right.addWidget(self.vol_icon)
 
         self.volume_slider = QSlider(Qt.Horizontal)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(70)
+        self.volume_slider.setRange(0, 200)
+        self.volume_slider.setValue(150)
         self.volume_slider.setFixedWidth(100)
         self.volume_slider.valueChanged.connect(self._on_volume)
         self.volume_slider.setStyleSheet(

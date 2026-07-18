@@ -90,7 +90,7 @@ class PlayerEngine:
 
     @volume.setter
     def volume(self, val: int) -> None:
-        self._player.audio_set_volume(max(0, min(100, val)))
+        self._player.audio_set_volume(max(0, min(200, val)))
 
     # ── Repeat / shuffle ──────────────────────────────────────────────
 
@@ -137,11 +137,8 @@ class PlayerEngine:
         self._list_player.play_item_at_index(start_index)
 
     def load_single(self, path: str) -> None:
-        """Load and play a single file using direct player (not list player)."""
-        self._player.stop()
-        media = self._instance.media_new(path)
-        self._player.set_media(media)
-        self._player.play()
+        """Load and play a single file via list player (so play/pause/stop route correctly)."""
+        self.load_playlist([path], start_index=0)
 
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 

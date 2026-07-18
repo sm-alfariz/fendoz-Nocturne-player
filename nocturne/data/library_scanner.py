@@ -117,22 +117,28 @@ class LibraryScanner:
         except Exception:
             return None
 
+        def _tag(raw):
+            """Extract text from an ID3 tag value (mutagen returns lists)."""
+            if isinstance(raw, list):
+                return str(raw[0]) if raw else ""
+            return str(raw)
+
         tags = mf.tags or {}
 
         title = (
-            str(tags.get("title", tags.get("TIT2", [""])))
+            _tag(tags.get("title", tags.get("TIT2", "")))
             if hasattr(tags, "get")
             else str(getattr(mf, "title", ""))
         ) or path.stem
 
         artist = (
-            str(tags.get("artist", tags.get("TPE1", [""])))
+            _tag(tags.get("artist", tags.get("TPE1", "")))
             if hasattr(tags, "get")
             else str(getattr(mf, "artist", ""))
         ) or None
 
         album = (
-            str(tags.get("album", tags.get("TALB", [""])))
+            _tag(tags.get("album", tags.get("TALB", "")))
             if hasattr(tags, "get")
             else str(getattr(mf, "album", ""))
         ) or None
