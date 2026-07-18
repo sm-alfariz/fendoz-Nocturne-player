@@ -40,22 +40,29 @@ class SongTableModel(QAbstractTableModel):
         return len(self.COLUMNS)
 
     def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid() or role != Qt.DisplayRole:
+        if not index.isValid():
             return None
         t = self._tracks[index.row()]
         col = index.column()
-        if col == 0: return str(t.id)
-        if col == 1: return t.title
-        if col == 2: return t.artist or ""
-        if col == 3: return t.album_title if hasattr(t, "album_title") else ""
-        if col == 4:
-            if t.duration_ms is None:
-                return "--:--"
-            m, s = divmod(int(t.duration_ms) // 1000, 60)
-            return f"{m}:{s:02d}"
-        if col == 5:
-            return "Online" if t.source_type == "soundcloud" else ""
-        if col == 6: return str(t.added_at)[:10] if t.added_at else ""
+
+        if role == Qt.DisplayRole:
+            if col == 0: return str(t.id)
+            if col == 1: return t.title
+            if col == 2: return t.artist or ""
+            if col == 3: return getattr(t, "album_title", "")
+            if col == 4:
+                if t.duration_ms is None:
+                    return "--:--"
+                m, s = divmod(int(t.duration_ms) // 1000, 60)
+                return f"{m}:{s:02d}"
+            if col == 5:
+                return "Online" if t.source_type == "soundcloud" else ""
+            if col == 6: return str(t.added_at)[:10] if t.added_at else ""
+
+        if role == Qt.TextAlignmentRole:
+            if col in (0, 4, 5):
+                return Qt.AlignCenter
+
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
@@ -100,7 +107,10 @@ class SongsView(QWidget):
         self.table.setAlternatingRowColors(False)
         self.table.setWordWrap(False)
         self.table.verticalHeader().setDefaultSectionSize(32)
+        self.table.verticalHeader().hide()
         self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setSelectionBehavior(QTableView.SelectRows)
+        self.table.setSelectionMode(QTableView.SingleSelection)
         self.table.doubleClicked.connect(self._on_double_click)
         self.table.setStyleSheet(
             f"QTableView{{background:{Color.CARD};border:1px solid {Color.BORDER};"
