@@ -255,8 +255,16 @@ class SidebarWidget(QWidget):
     def _on_nav_mode_changed(self, mode: NavigationDisplayMode) -> None:
         if mode == NavigationDisplayMode.MINIMAL:
             self.setFixedWidth(68)
+            self.setStyleSheet("background:transparent;")
         else:
             self.setFixedWidth(220)
+            self.setStyleSheet(
+                f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
+            )
+        self.updateGeometry()
+        parent = self.parent()
+        if parent:
+            parent.layout().activate()
             self.setStyleSheet(
                 f"background:rgba(15,23,42,0.35);border-right:1px solid {Color.BORDER};"
             )
