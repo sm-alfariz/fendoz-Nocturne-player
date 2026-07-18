@@ -304,7 +304,7 @@ class MainWindow(QWidget):
                 w = SettingInterface(self)
                 w.scan_requested.connect(self._scan_library)
             elif key == "equalizer":
-                w = EqualizerView(self.equalizer, self)
+                w = EqualizerView(self.equalizer, self, assign_callback=self._assign_eq_to_track)
             elif key == "playlist":
                 w = PlaylistView(self)
                 w.track_activated.connect(self._play_track)
@@ -427,6 +427,16 @@ class MainWindow(QWidget):
             self._views.setCurrentWidget(self._pages[key])
             if hasattr(self._pages[key], "load"):
                 self._pages[key].load()
+            if key == "equalizer" and self._current_track:
+                conn = get_connection()
+                row = conn.execute(
+                    "SELECT eq_preset FROM tracks WHERE id = ?",
+                    (self._current_track.id,),
+                ).fetchone()
+                if hasattr(self._pages[key], "load_for_track"):
+                    self._pages[key].load_for_track(
+                        row["eq_preset"] if row else None
+                    )
 
     def show_view(self, key: str) -> None:
         self._switch_to(key)
@@ -482,6 +492,18 @@ class MainWindow(QWidget):
         self.player_engine.load_single(track.path)
         # load_single already calls player.play()
         self._on_track_changed(track)
+
+    def _assign_eq_to_track(self, preset_name: str) -> None:
+        """Assign an EQ preset to the currently playing track."""
+        if not self._current_track or not self._current_track.id:
+            return
+        conn = get_connection()
+        conn.execute(
+            "UPDATE tracks SET eq_preset = ? WHERE id = ?",
+            (preset_name, self._current_track.id),
+        )
+        conn.commit()
+        self.player_bar.set_eq_preset(preset_name)
 
     def _play_artist_tracks(self, artist: str) -> None:
         """Queue all tracks by an artist."""
@@ -593,6 +615,15 @@ class MainWindow(QWidget):
 
         # Lyrics
         self._load_lyrics(track)
+
+        # Apply track EQ preset (FR-3.3)
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT eq_preset FROM tracks WHERE id = ?", (track.id,)
+        ).fetchone()
+        eq_name = row["eq_preset"] if row and row["eq_preset"] else "Flat"
+        self.equalizer.apply_preset(eq_name)
+        self.player_bar.set_eq_preset(eq_name)
 
         # Save state
         self.player_engine.save_state()

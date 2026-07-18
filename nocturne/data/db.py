@@ -102,17 +102,21 @@ def init_db(db_path: str | Path) -> sqlite3.Connection:
 
 def migrate(conn: sqlite3.Connection, current_version: int) -> None:
     """Run incremental migrations keyed by PRAGMA user_version."""
-    target = 1  # bump each time schema changes
+    target = 2  # bump each time schema changes
 
     if current_version < 1:
         # v1: initial schema
         conn.executescript(SCHEMA_SQL)
         for idx in INDEXES_SQL:
             conn.execute(idx)
-        conn.execute(f"PRAGMA user_version = {target}")
+        conn.execute("PRAGMA user_version = 1")
         conn.commit()
 
-    # future: elif current_version < 2: ...
+    if current_version < 2:
+        # v2: eq_preset column per track (FR-3.3)
+        conn.execute("ALTER TABLE tracks ADD COLUMN eq_preset TEXT DEFAULT NULL")
+        conn.execute("PRAGMA user_version = 2")
+        conn.commit()
 
 
 def get_connection() -> sqlite3.Connection:

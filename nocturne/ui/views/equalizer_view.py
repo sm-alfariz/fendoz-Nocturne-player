@@ -54,9 +54,10 @@ class BandSlider(QWidget):
 class EqualizerView(QWidget):
     """Full equalizer page with sliders + presets."""
 
-    def __init__(self, equalizer: Equalizer, parent=None):
+    def __init__(self, equalizer: Equalizer, parent=None, assign_callback=None):
         super().__init__(parent)
         self._eq = equalizer
+        self._assign_callback = assign_callback
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
@@ -79,6 +80,11 @@ class EqualizerView(QWidget):
         self.save_btn = PushButton("Save as custom")
         self.save_btn.clicked.connect(self._save_custom)
         preset_row.addWidget(self.save_btn)
+
+        # Assign to current track
+        self.assign_btn = PushButton("Assign to Track")
+        self.assign_btn.clicked.connect(self._assign_to_track)
+        preset_row.addWidget(self.assign_btn)
         layout.addLayout(preset_row)
 
         # Sliders
@@ -109,3 +115,13 @@ class EqualizerView(QWidget):
     def _save_custom(self) -> None:
         values = [s.slider.value() / 10.0 for s in self._sliders]
         self._eq.save_custom_preset("Custom", values)
+
+    def _assign_to_track(self) -> None:
+        preset = self.preset_combo.currentText()
+        if self._assign_callback:
+            self._assign_callback(preset)
+
+    def load_for_track(self, eq_preset: str | None) -> None:
+        """Set dropdown to the given preset (from track assignment)."""
+        if eq_preset and eq_preset in Equalizer.all_presets():
+            self.preset_combo.setCurrentText(eq_preset)
