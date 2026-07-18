@@ -99,7 +99,6 @@ class SongsView(QWidget):
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(False)
         self.table.setWordWrap(False)
-        self.table.setUniformRowHeights(True)
         self.table.verticalHeader().setDefaultSectionSize(32)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.doubleClicked.connect(self._on_double_click)
