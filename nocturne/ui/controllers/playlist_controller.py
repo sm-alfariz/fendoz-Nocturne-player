@@ -42,3 +42,12 @@ class PlaylistController(Controller):
 
     def import_m3u(self, path: str) -> dict:
         return self._pm.import_m3u(path)
+
+    def export_m3u(self, playlist_id: int, output_path: str) -> None:
+        self._pm.export_m3u(playlist_id, output_path)
+
+    def remove_track(self, playlist_id: int, track_id: int) -> None:
+        self._pm.remove_track(playlist_id, track_id)
+
+    def reorder_tracks(self, playlist_id: int, track_ids: list[int]) -> None:
+        self._pm.reorder(playlist_id, track_ids)

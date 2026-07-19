@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QPushButton,
     QSplitter,
     QVBoxLayout,
@@ -49,11 +50,15 @@ class PlaylistDetail(QWidget):
         self.add_btn = QPushButton("Add Track")
         self.add_btn.setFixedHeight(30)
         self.add_btn.clicked.connect(self._add_track)
+        self.export_btn = QPushButton("Export .m3u")
+        self.export_btn.setFixedHeight(30)
+        self.export_btn.clicked.connect(self._export_m3u)
         self.del_btn = QPushButton("Delete Playlist")
         self.del_btn.setStyleSheet("color: #F472B6;")
         self.del_btn.setFixedHeight(30)
         top.addWidget(self.add_sc_btn)
         top.addWidget(self.add_btn)
+        top.addWidget(self.export_btn)
         top.addWidget(self.del_btn)
         layout.addLayout(top)
 
@@ -64,22 +69,66 @@ class PlaylistDetail(QWidget):
             "QListWidget::item:selected{background:rgba(30,136,229,0.2);}"
         )
         self.track_list.doubleClicked.connect(self._on_double_click)
+        self.track_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.track_list.customContextMenuRequested.connect(self._on_context_menu)
+        # Drag-drop reorder
+        self.track_list.setDragDropMode(QListWidget.InternalMove)
+        self.track_list.setDefaultDropAction(Qt.MoveAction)
+        self.track_list.model().rowsInserted.connect(self._on_rows_inserted)
         layout.addWidget(self.track_list)
 
         self._playlist_id: int | None = None
         self._tracks: list[Track] = []
+        self._suppress_reorder = False
 
     def load(self, playlist_id: int) -> None:
         self._playlist_id = playlist_id
         name = self._controller.get_name(playlist_id)
         self.title_label.setText(name)
         self._tracks = self._controller.get_tracks(playlist_id)
+        self._suppress_reorder = True
         self.track_list.clear()
         for t in self._tracks:
             prefix = "🌐 " if t.source_type == "soundcloud" else ""
             item = QListWidgetItem(f"{prefix}{t.title or '?'}  —  {t.artist or '?'}")
             item.setData(Qt.UserRole, t.id)
             self.track_list.addItem(item)
+        self._suppress_reorder = False
+
+    def _on_context_menu(self, pos) -> None:
+        item = self.track_list.itemAt(pos)
+        if not item or self._playlist_id is None:
+            return
+        track_id = item.data(Qt.UserRole)
+        menu = QMenu(self)
+        remove_action = menu.addAction("Remove from playlist")
+        action = menu.exec(self.track_list.viewport().mapToGlobal(pos))
+        if action == remove_action:
+            self._controller.remove_track(self._playlist_id, track_id)
+            self.load(self._playlist_id)
+
+    def _on_rows_inserted(self, parent, first, last) -> None:
+        """Save new track order after drag-drop reorder."""
+        if self._suppress_reorder or self._playlist_id is None:
+            return
+        ids: list[int] = []
+        for i in range(self.track_list.count()):
+            ids.append(self.track_list.item(i).data(Qt.UserRole))
+        self._controller.reorder_tracks(self._playlist_id, ids)
+
+    def _export_m3u(self) -> None:
+        if self._playlist_id is None:
+            return
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export .m3u", f"{self.title_label.text()}.m3u",
+            "Playlist files (*.m3u *.m3u8)"
+        )
+        if not path:
+            return
+        self._controller.export_m3u(self._playlist_id, path)
+        InfoBar.success(title="Export", content=f"Exported {len(self._tracks)} tracks",
+                        parent=self, duration=2000)
 
     def _add_soundcloud(self) -> None:
         if self._playlist_id is None:
