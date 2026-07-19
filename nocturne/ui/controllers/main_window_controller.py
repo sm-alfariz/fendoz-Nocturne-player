@@ -144,18 +144,22 @@ class MainWindowController(Controller):
     def is_shuffled(self) -> bool:
         return self._shuffled
 
-    def play_track(self, track: Track) -> None:
+    def play_track(self, track: Track, queue: list[Track] | None = None) -> None:
         if track.source_type == "local":
             if not track.path or not Path(track.path).exists():
                 return
-        # Load all library tracks as queue context
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT * FROM tracks WHERE path IS NOT NULL ORDER BY title"
-        ).fetchall()
-        all_tracks = [Track.from_row(r) for r in rows]
-        idx = next((i for i, t in enumerate(all_tracks) if t.id == track.id), 0)
-        self._play(all_tracks, idx)
+        if queue is not None:
+            idx = next((i for i, t in enumerate(queue) if t.id == track.id), 0)
+            self._play(queue, idx)
+        else:
+            # Fallback: all library tracks
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT * FROM tracks WHERE path IS NOT NULL ORDER BY title"
+            ).fetchall()
+            all_tracks = [Track.from_row(r) for r in rows]
+            idx = next((i for i, t in enumerate(all_tracks) if t.id == track.id), 0)
+            self._play(all_tracks, idx)
 
     def play_artist_tracks(self, artist: str) -> None:
         conn = get_connection()

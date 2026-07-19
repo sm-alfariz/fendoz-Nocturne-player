@@ -260,6 +260,7 @@ class MainWindow(QWidget):
             elif key == "playlist":
                 w = PlaylistView(self)
                 w.track_activated.connect(self._play_track)
+                w.play_playlist_track.connect(self._play_playlist_track)
             else:
                 w = BlankWidget(label, self)
             self._pages[key] = w
@@ -484,6 +485,14 @@ class MainWindow(QWidget):
         self._play_track(track)
 
     # ── Playback ──────────────────────────────────────────────────────
+
+    def _play_playlist_track(self, track: Track, queue: list) -> None:
+        if self._current_track and hasattr(self.lyrics_panel, "_offset_ms"):
+            self.ctrl.save_lyrics_offset(
+                self._current_track, self.lyrics_panel._offset_ms
+            )
+        self._current_track = track
+        self.ctrl.play_track(track, queue)
 
     def _play_track(self, track: Track) -> None:
         if self._current_track and hasattr(self.lyrics_panel, "_offset_ms"):

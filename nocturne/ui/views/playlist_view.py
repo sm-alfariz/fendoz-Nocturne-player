@@ -31,6 +31,7 @@ class PlaylistDetail(QWidget):
     """Right-side: tracks in a single playlist."""
 
     track_activated = Signal(object)  # Track
+    play_playlist_track = Signal(object, list)  # Track, queue
 
     def __init__(self, controller: PlaylistController, parent=None):
         super().__init__(parent)
@@ -180,13 +181,14 @@ class PlaylistDetail(QWidget):
     def _on_double_click(self, index) -> None:
         row = index.row()
         if 0 <= row < len(self._tracks):
-            self.track_activated.emit(self._tracks[row])
+            self.play_playlist_track.emit(self._tracks[row], list(self._tracks))
 
 
 class PlaylistView(QWidget):
     """Playlist page: left list of playlists, right detail."""
 
     track_activated = Signal(object)  # Track
+    play_playlist_track = Signal(object, list)  # Track, queue
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -230,6 +232,7 @@ class PlaylistView(QWidget):
 
         self.detail = PlaylistDetail(self._controller, self)
         self.detail.track_activated.connect(self.track_activated.emit)
+        self.detail.play_playlist_track.connect(self.play_playlist_track.emit)
         self.detail.del_btn.clicked.connect(self._delete_current)
         splitter.addWidget(self.detail)
 
