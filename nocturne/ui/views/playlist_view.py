@@ -121,9 +121,11 @@ class PlaylistDetail(QWidget):
                 pm.add_track(self._playlist_id, row[0])
                 added += 1
         if added:
-            InfoBar.success(self, "Add Track", f"{added} track{'s' if added > 1 else ''} added", duration=2000)
+            InfoBar.success(title="Add Track", content=f"{added} track{'s' if added > 1 else ''} added",
+                            parent=self, duration=2000)
         else:
-            InfoBar.warning(self, "Add Track", "No tracks found in library. Scan your music first.", duration=3000)
+            InfoBar.warning(title="Add Track", content="No tracks found in library. Scan your music first.",
+                            parent=self, duration=3000)
         self.load(self._playlist_id)
 
     def _on_double_click(self, index) -> None:
