@@ -612,6 +612,15 @@ class MainWindow(QWidget):
     def add_music_folder(self, folder: str) -> None:
         self.ctrl.add_music_folder(folder)
 
+    def closeEvent(self, event) -> None:
+        """Clean shutdown — stop threads, save state, release engine."""
+        self.ctrl.audio_worker.stop()
+        self.ctrl.player_engine.save_state()
+        self.ctrl.player_engine.stop()
+        self.ctrl.player_engine.cleanup()
+        self._lyrics_timer.stop()
+        event.accept()
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)

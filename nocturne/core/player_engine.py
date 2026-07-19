@@ -217,5 +217,6 @@ class PlayerEngine:
 
     def cleanup(self) -> None:
         """Release VLC resources."""
+        self._pcm.stop()
         self._player.stop()
         self._instance.release()
