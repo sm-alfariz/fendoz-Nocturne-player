@@ -14,6 +14,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 
 from nocturne.data.db import get_db_path
+from nocturne.core.pcm_capture import PCMCapture
 
 
 class QtPlayerEngine:
@@ -29,6 +30,7 @@ class QtPlayerEngine:
         self._media_player = QMediaPlayer()
         self._audio_output = QAudioOutput()
         self._media_player.setAudioOutput(self._audio_output)
+        self._pcm = PCMCapture()
 
         self._playlist_paths: list[str] = []
         self._current_index = -1
@@ -40,12 +42,15 @@ class QtPlayerEngine:
     # ── Playback control ──────────────────────────────────────────────
 
     def play(self) -> None:
+        self._pcm.start()
         self._media_player.play()
 
     def pause(self) -> None:
+        self._pcm.stop()
         self._media_player.pause()
 
     def stop(self) -> None:
+        self._pcm.stop()
         self._media_player.stop()
 
     def toggle_play(self) -> None:
@@ -139,7 +144,7 @@ class QtPlayerEngine:
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 
     def pcm_data(self, n_samples: int = 1024) -> np.ndarray | None:
-        return None
+        return self._pcm.read_fft(n_samples)
 
     # ── Playback state persistence ────────────────────────────────────
 
@@ -168,4 +173,5 @@ class QtPlayerEngine:
             return None
 
     def cleanup(self) -> None:
+        self._pcm.stop()
         self._media_player.stop()
