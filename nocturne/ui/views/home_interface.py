@@ -84,11 +84,10 @@ class BannerWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.setFixedHeight(640)
 
         self.vBoxLayout = QVBoxLayout(self)
-        self.vBoxLayout.setContentsMargins(24, 12, 24, 18)
-        self.vBoxLayout.setSpacing(10)
+        self.vBoxLayout.setContentsMargins(24, 8, 24, 12)
+        self.vBoxLayout.setSpacing(6)
         self.vBoxLayout.setAlignment(Qt.AlignCenter)
 
         self.galleryLabel = QLabel("Continue Listening", self)
@@ -107,14 +106,14 @@ class BannerWidget(QWidget):
 
         self.visualizer = RingVisualizer(self)
         self.visualizer.setObjectName("homeRingVisualizer")
-        self.visualizer.setFixedSize(360, 360)
+        self.visualizer.setFixedSize(280, 280)
         self.visualizer.setVisible(False)
         self.vBoxLayout.addWidget(self.visualizer, 0, Qt.AlignCenter)
 
         self.spectrum = SpectrumBar(self)
-        self.spectrum.setFixedHeight(96)
+        self.spectrum.setFixedHeight(80)
         self.spectrum.setMinimumWidth(400)
-        self.vBoxLayout.addSpacing(20)
+        self.vBoxLayout.addSpacing(12)
         self.vBoxLayout.addWidget(self.spectrum)
         self.vBoxLayout.addStretch()
 
