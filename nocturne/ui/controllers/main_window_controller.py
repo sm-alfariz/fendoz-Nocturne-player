@@ -242,14 +242,31 @@ class MainWindowController(Controller):
             "SELECT * FROM tracks WHERE path = ?", (path,)
         ).fetchone()
         if not row:
+            # file not in library — load standalone, no queue
+            from pathlib import Path as P
+            import ntpath
+            title = ntpath.splitext(ntpath.basename(path))[0]
+            track = Track(path=path, title=title)
+            self._current_track = track
+            self.player_engine.load_single(track.path)
+            pos = state.get("position_ms", 0)
+            if pos > 0:
+                QTimer.singleShot(500, lambda: self.player_engine.seek(pos))
+            self._on_track_changed(track)
             return
+
         track = Track.from_row(row)
-        self._current_track = track
-        self.player_engine.load_single(track.path)
+        # Build full library queue and play at resumed position
+        conn2 = get_connection()
+        rows = conn2.execute(
+            "SELECT * FROM tracks WHERE path IS NOT NULL ORDER BY title"
+        ).fetchall()
+        all_tracks = [Track.from_row(r) for r in rows]
+        idx = next((i for i, t in enumerate(all_tracks) if t.id == track.id), 0)
+        self._play(all_tracks, idx)
         pos = state.get("position_ms", 0)
         if pos > 0:
             QTimer.singleShot(500, lambda: self.player_engine.seek(pos))
-        self._on_track_changed(track)
 
     # ── Live state ────────────────────────────────────────────────────
 
