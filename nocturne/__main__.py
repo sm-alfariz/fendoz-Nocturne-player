@@ -31,7 +31,7 @@ def _qt_msg_handler(msg_type, context, msg):
 
 qInstallMessageHandler(_qt_msg_handler)
 
-from nocturne.config.config import cfg
+from nocturne.config.config import cfg  # noqa: E402
 
 if cfg.get(cfg.dpiScale) != "Auto":
     os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
@@ -41,12 +41,12 @@ app = QApplication(sys.argv)
 app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 
 # Force dark theme before any widgets are created
-from qfluentwidgets import setTheme, Theme
-from qfluentwidgets import qconfig
+from qfluentwidgets import setTheme, Theme  # noqa: E402
+from qfluentwidgets import qconfig  # noqa: E402
 qconfig.set(qconfig.themeMode, Theme.DARK)
 setTheme(Theme.DARK)
 
-from nocturne.ui.main_window import MainWindow
+from nocturne.ui.main_window import MainWindow  # noqa: E402
 w = MainWindow()
 w.show()
 app.exec()

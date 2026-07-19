@@ -160,8 +160,8 @@ class PlayerBar(QWidget):
         self.artwork_mini.setFixedSize(44, 44)
         self.artwork_mini.setAlignment(Qt.AlignCenter)
         self.artwork_mini.setStyleSheet(
-            f"background:radial-gradient(circle at 35% 30%, #2E4A7D, #101B33 70%);"
-            f"border-radius:11px;font-size:20px;"
+            "background:radial-gradient(circle at 35% 30%, #2E4A7D, #101B33 70%);"
+            "border-radius:11px;font-size:20px;"
         )
         left.addWidget(self.artwork_mini)
 

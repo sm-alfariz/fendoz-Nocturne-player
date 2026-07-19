@@ -9,11 +9,10 @@ Enhanced LRC format, rendered via QTextEdit HTML.
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QLinearGradient, QPainter
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QTextEdit, QWidget
 
 from nocturne.ui.theme.tokens import Color, Fonts
 from nocturne.core.lyrics_sync import LyricLine

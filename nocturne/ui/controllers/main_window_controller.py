@@ -243,7 +243,6 @@ class MainWindowController(Controller):
         ).fetchone()
         if not row:
             # file not in library — load standalone, no queue
-            from pathlib import Path as P
             import ntpath
             title = ntpath.splitext(ntpath.basename(path))[0]
             track = Track(path=path, title=title)

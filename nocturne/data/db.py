@@ -1,4 +1,6 @@
 # coding:utf-8
+from __future__ import annotations
+
 """
 db.py — SQLite initialisation, migrations, and connection management.
 
@@ -6,10 +8,8 @@ Schema follows 06-database-schema.md (normalised: albums separate from tracks).
 Migration versioning via PRAGMA user_version.
 """
 
-from __future__ import annotations
-
-import sqlite3
-from pathlib import Path
+import sqlite3  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 
 SCHEMA_SQL = """
@@ -102,7 +102,6 @@ def init_db(db_path: str | Path) -> sqlite3.Connection:
 
 def migrate(conn: sqlite3.Connection, current_version: int) -> None:
     """Run incremental migrations keyed by PRAGMA user_version."""
-    target = 2  # bump each time schema changes
 
     if current_version < 1:
         # v1: initial schema
@@ -129,7 +128,7 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
-def upsert_sc_track(data: dict) -> "Track":
+def upsert_sc_track(data: dict):
     """Insert or update a SoundCloud track in the database.
 
     Deduplicates by source_url (SoundCloud permalink is stable).

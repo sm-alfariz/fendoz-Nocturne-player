@@ -302,7 +302,7 @@ def _extract_stream_url(data: dict) -> Optional[str]:
     for t in transcodings:
         fmt = t.get("format", {})
         protocol = fmt.get("protocol", "")
-        t_url = t.get("url", "")
+        t.get("url", "")
         if protocol == "progressive":
             preferred = t
             break
