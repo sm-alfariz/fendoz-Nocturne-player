@@ -410,6 +410,13 @@ class MainWindow(QWidget):
                 parentRouteKey="playlist_section",
             )
 
+        nav.addItem(
+            routeKey="exit_app",
+            icon=FIF.CLOSE,
+            text="Exit",
+            onClick=self._quit_app,
+            position=NavigationItemPosition.BOTTOM,
+        )
         nav.addSeparator()
         nav.addWidget(
             routeKey="avatar",
