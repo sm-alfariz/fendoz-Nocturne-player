@@ -40,6 +40,7 @@ if cfg.get(cfg.dpiScale) != "Auto":
 app = QApplication(sys.argv)
 app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 app.setQuitOnLastWindowClosed(False)
+app.aboutToQuit.connect(lambda: sys.stderr.write("aboutToQuit fired\n"))
 
 # Force dark theme before any widgets are created
 from qfluentwidgets import setTheme, Theme  # noqa: E402

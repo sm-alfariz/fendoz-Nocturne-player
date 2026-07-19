@@ -331,7 +331,9 @@ class MainWindow(QWidget):
 
         # ── System tray ────────────────────────────────────────────────
         self._setup_tray()
+        QApplication.instance().setQuitOnLastWindowClosed(not cfg.closeToTray.value)
         if cfg.closeToTray.value:
+            self.setAttribute(Qt.WA_QuitOnClose, False)
             self.tray_icon.show()
 
         # ── Resume playback on startup ────────────────────────────────
@@ -681,8 +683,31 @@ class MainWindow(QWidget):
     def add_music_folder(self, folder: str) -> None:
         self.ctrl.add_music_folder(folder)
 
+    def _really_quit(self) -> None:
+        """Clean shutdown without tray — called from Exit action or close when tray off."""
+        self.ctrl.audio_worker.stop()
+        self.ctrl.player_engine.save_state()
+        self.ctrl.player_engine.stop()
+        self.ctrl.player_engine.cleanup()
+        self._lyrics_timer.stop()
+        if self.mini_player:
+            self.mini_player._timer.stop()
+
+    def changeEvent(self, event) -> None:
+        """Detect minimize and hide to tray."""
+        if event.type() == event.WindowStateChange:
+            if self.isMinimized() and cfg.closeToTray.value and self.tray_icon:
+                self.hide()
+                if self.mini_player and self.mini_player.isVisible():
+                    self.mini_player.hide()
+                self.tray_icon.show()
+                return
+        super().changeEvent(event)
+
     def closeEvent(self, event) -> None:
-        """Override close — hide to tray instead of quitting."""
+        """Override close — hide to tray instead of quitting.
+        note: on Wayland event.ignore() is ignored, so close=X always works.
+        """
         if cfg.closeToTray.value and self.tray_icon:
             event.ignore()
             self.hide()
@@ -690,13 +715,8 @@ class MainWindow(QWidget):
                 self.mini_player.hide()
             self.tray_icon.show()
             return
-        self.ctrl.audio_worker.stop()
-        self.ctrl.player_engine.save_state()
-        self.ctrl.player_engine.stop()
-        self.ctrl.player_engine.cleanup()
-        self._lyrics_timer.stop()
-        self.mini_player._timer.stop()
         event.accept()
+        self._really_quit()
 
     def _setup_tray(self) -> None:
         icon_path = os.path.join(
