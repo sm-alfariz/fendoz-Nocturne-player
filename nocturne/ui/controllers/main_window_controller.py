@@ -8,13 +8,14 @@ all sub-controllers, and the shared state across views.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QTimer, Signal
+from PySide6.QtCore import QThread, QTimer, Signal
 
 from nocturne.data.db import get_connection
-from nocturne.data.library_scanner import LibraryScanner
+from nocturne.data.library_scanner import ScanWorker
 from nocturne.data.models import Track
 from nocturne.config.config import PlayerBackend, cfg
 from nocturne.core.player_engine import PlayerEngine as VLCPlayerEngine
@@ -33,6 +34,9 @@ from nocturne.ui.controllers.equalizer_controller import EqualizerController
 from nocturne.ui.controllers.settings_controller import SettingsController
 
 
+logger = logging.getLogger(__name__)
+
+
 class MainWindowController(Controller):
     """Top-level orchestrator connecting engines, controllers, and UI."""
 
@@ -41,6 +45,7 @@ class MainWindowController(Controller):
     play_state_changed = Signal(bool)
     lyrics_loaded = Signal(object, int)  # list[LyricLine], offset_ms
     scan_complete = Signal()
+    scan_progress = Signal(int, int)  # current, total
     volume_restored = Signal(int)
 
     def __init__(self, parent=None) -> None:
@@ -82,7 +87,6 @@ class MainWindowController(Controller):
 
         # ── Signal bus wiring ─────────────────────────────────────────
         signalBus.folder_added.connect(self._on_folder_added)
-        signalBus.scan_started.connect(self.scan_library)
 
     # ── Playback ──────────────────────────────────────────────────────
 
@@ -383,9 +387,25 @@ class MainWindowController(Controller):
         if not self._music_folders:
             return
 
-        conn = get_connection()
-        scanner = LibraryScanner(conn)
-        scanner.scan(self._music_folders)
+        from nocturne.data.db import get_db_path
+        db_path = get_db_path()
+        # QThread + ScanWorker for non-blocking scan
+        self._scan_thread = QThread(self)
+        self._scan_worker = ScanWorker(self._music_folders, db_path)
+        self._scan_worker.moveToThread(self._scan_thread)
+        self._scan_thread.started.connect(self._scan_worker.run)
+        self._scan_worker.progress.connect(self._on_scan_progress)
+        self._scan_worker.finished.connect(self._on_scan_finished)
+        self._scan_worker.finished.connect(self._scan_thread.quit)
+        self._scan_thread.finished.connect(self._scan_worker.deleteLater)
+        self._scan_thread.finished.connect(self._scan_thread.deleteLater)
+        self._scan_thread.start()
+
+    def _on_scan_progress(self, current: int, total: int) -> None:
+        self.scan_progress.emit(current, total)
+
+    def _on_scan_finished(self, new_tracks: int, updated_tracks: int) -> None:
+        logger.info("Scan complete: %d new, %d updated", new_tracks, updated_tracks)
         self.scan_complete.emit()
 
     def add_music_folder(self, folder: str) -> None:

@@ -36,6 +36,7 @@ from nocturne.config.config import ROOT
 from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.components.lyrics_panel import LyricsPanel
 from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
+from nocturne.ui.components.scan_progress_overlay import ScanProgressOverlay
 from nocturne.ui.views.blank_widget import BlankWidget
 from nocturne.ui.views.home_interface import HomeInterface
 from nocturne.ui.views.setting_interface import SettingInterface
@@ -276,6 +277,9 @@ class MainWindow(QWidget):
         self.stage = StageWidget(self)
         self.top_bar = TopBar(self)
 
+        # ── Scan progress overlay (on top of everything) ─────────────
+        self.scan_overlay = ScanProgressOverlay(self)
+
         # ── Build layout ──────────────────────────────────────────────
         self._build_layout()
 
@@ -307,6 +311,7 @@ class MainWindow(QWidget):
         self.ctrl.track_changed.connect(self._on_track_changed)
         self.ctrl.lyrics_loaded.connect(self._on_lyrics_loaded)
         self.ctrl.scan_complete.connect(self._on_scan_complete)
+        self.ctrl.scan_progress.connect(self.scan_overlay.set_progress)
         self.ctrl.volume_restored.connect(self.player_bar.set_volume)
 
         # ── Audio worker → visualizer + spectrum ──────────────────────
@@ -543,6 +548,7 @@ class MainWindow(QWidget):
         self.lyrics_panel.set_offset(offset_ms)
 
     def _on_scan_complete(self) -> None:
+        self.scan_overlay.hide()
         songs_view = self._pages.get("songs")
         if isinstance(songs_view, SongsView):
             tracks = self.ctrl.songs.load_tracks()
@@ -610,6 +616,10 @@ class MainWindow(QWidget):
         if not self.ctrl.music_folders:
             self.show_view("settings")
             return
+        self.scan_overlay.progress_bar.setValue(0)
+        self.scan_overlay.label.setText("Scanning library...")
+        self.scan_overlay.show()
+        self.scan_overlay.raise_()
         self.ctrl.scan_library()
 
     def add_music_folder(self, folder: str) -> None:

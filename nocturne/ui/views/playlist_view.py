@@ -13,13 +13,12 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QMessageBox,
     QPushButton,
     QSplitter,
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import InfoBar
+from qfluentwidgets import InfoBar, MessageBox
 
 from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
@@ -188,11 +187,8 @@ class PlaylistView(QWidget):
         pid = self.detail._playlist_id
         if pid is None:
             return
-        ret = QMessageBox.question(
-            self, "Delete", "Delete this playlist permanently?",
-            QMessageBox.Yes | QMessageBox.No,
-        )
-        if ret == QMessageBox.Yes:
+        dialog = MessageBox("Delete Playlist", "Delete this playlist permanently?", self)
+        if dialog.exec():
             self._controller.delete(pid)
             self._reload_list()
             self.detail.title_label.setText("Select a playlist")
