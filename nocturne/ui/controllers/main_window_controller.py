@@ -200,10 +200,16 @@ class MainWindowController(Controller):
             self._play(q, nidx)
 
     def next_track(self) -> None:
-        self._navigate(1)
+        if self._vlc_backend:
+            self.player_engine.next()
+        else:
+            self._navigate(1)
 
     def prev_track(self) -> None:
-        self._navigate(-1)
+        if self._vlc_backend:
+            self.player_engine.previous()
+        else:
+            self._navigate(-1)
 
     def _sync_current_track(self) -> None:
         """Called on end-of-track: advance to next (non-VLC fallback)."""
@@ -217,7 +223,13 @@ class MainWindowController(Controller):
         if not path or not self._playback_queue:
             self._current_track = None
             return
-        track = next((t for t in self._playback_queue if t.path == path), None)
+        # Normalise both sides for comparison
+        from pathlib import Path as PPath
+        target = str(PPath(path).resolve())
+        track = next(
+            (t for t in self._playback_queue if t.path and str(PPath(t.path).resolve()) == target),
+            None,
+        )
         if track:
             self._save_lyrics_offset_for_current()
             self._current_track = track
