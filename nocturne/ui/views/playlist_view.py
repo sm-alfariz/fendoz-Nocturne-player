@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import InfoBar, MessageBox
 
+from nocturne.common.signal_bus import signalBus
 from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
 from nocturne.ui.controllers.playlist_controller import PlaylistController
@@ -170,6 +171,7 @@ class PlaylistView(QWidget):
             item.setData(Qt.UserRole, p.id)
             self.playlist_list.addItem(item)
         self.playlist_list.blockSignals(False)
+        signalBus.playlist_changed.emit()
 
     def _on_select(self, row: int) -> None:
         item = self.playlist_list.item(row)

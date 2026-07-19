@@ -306,6 +306,7 @@ class MainWindow(QWidget):
         # ── Signal bus connections ────────────────────────────────────
         signalBus.scan_started.connect(self._scan_library)
         signalBus.reduce_motion_changed.connect(self.stage.ring.set_reduce_motion)
+        signalBus.playlist_changed.connect(self._rebuild_playlist_nav)
 
         # ── Controller connections ────────────────────────────────────
         self.ctrl.track_changed.connect(self._on_track_changed)
@@ -382,9 +383,12 @@ class MainWindow(QWidget):
             text="My Playlist",
             position=NavigationItemPosition.SCROLL,
         )
+        self._playlist_nav_keys: list[str] = []
         for pl in pm.list_all():
+            key = f"playlist_{pl.id}"
+            self._playlist_nav_keys.append(key)
             nav.addItem(
-                routeKey=f"playlist_{pl.id}",
+                routeKey=key,
                 icon=FIF.MUSIC_FOLDER,
                 text=pl.name,
                 onClick=lambda pid=pl.id: self._nav_playlist_click(pid),
@@ -418,6 +422,25 @@ class MainWindow(QWidget):
                     self._pages[key].load_for_track(
                         row["eq_preset"] if row else None
                     )
+
+    def _rebuild_playlist_nav(self) -> None:
+        """Re-read playlists from DB and update the sidebar navigation."""
+        for key in self._playlist_nav_keys:
+            self.nav.removeWidget(key)
+        self._playlist_nav_keys.clear()
+
+        from nocturne.data.playlist_manager import PlaylistManager
+        for pl in PlaylistManager().list_all():
+            key = f"playlist_{pl.id}"
+            self._playlist_nav_keys.append(key)
+            self.nav.addItem(
+                routeKey=key,
+                icon=FIF.MUSIC_FOLDER,
+                text=pl.name,
+                onClick=lambda pid=pl.id: self._nav_playlist_click(pid),
+                position=NavigationItemPosition.SCROLL,
+                parentRouteKey="playlist_section",
+            )
 
     def _nav_playlist_click(self, playlist_id: int) -> None:
         self.show_view("playlist")
