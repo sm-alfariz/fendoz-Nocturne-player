@@ -98,10 +98,6 @@ class ClickableSlider(QSlider):
             self._set_pos_from_event(event)
         super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event) -> None:
-        self._set_pos_from_event(event)
-        super().mouseMoveEvent(event)
-
     def _set_pos_from_event(self, event) -> None:
         r = self.rect().adjusted(7, 0, -7, 0)
         val = QStyle.sliderValueFromPosition(

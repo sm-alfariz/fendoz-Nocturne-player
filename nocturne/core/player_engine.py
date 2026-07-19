@@ -59,15 +59,15 @@ class PlayerEngine:
 
     def play(self) -> None:
         self._pcm.start()
-        self._list_player.play()
+        self._player.play()
 
     def pause(self) -> None:
         self._pcm.stop()
-        self._list_player.pause()
+        self._player.pause()
 
     def stop(self) -> None:
         self._pcm.stop()
-        self._list_player.stop()
+        self._player.stop()
 
     def toggle_play(self) -> None:
         if self._player.is_playing():
@@ -150,8 +150,12 @@ class PlayerEngine:
         self._list_player.play_item_at_index(start_index)
 
     def load_single(self, path: str) -> None:
-        """Load and play a single file via list player (so play/pause/stop route correctly)."""
-        self.load_playlist([path], start_index=0)
+        """Load a single file directly (not via list player, which breaks next-track)."""
+        from urllib.parse import quote
+        mrl = "file://" + quote(str(path))
+        media = self._instance.media_new(mrl)
+        self._player.set_media(media)
+        media.release()
 
     def set_on_end(self, callback) -> None:
         """Register callback when track finishes playing.
