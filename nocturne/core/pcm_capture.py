@@ -89,20 +89,10 @@ class PCMCapture:
 
     def _run(self) -> None:
         src = self._resolve_monitor()
-        if src and self._player_check():
+        if src:
             self._capture_parec(src)
         else:
             self._push_synthetic()
-
-    def _player_check(self) -> bool:
-        """Only use real PCM capture when something is playing."""
-        try:
-            import vlc
-            inst = vlc.Instance("--quiet")
-            player = inst.media_player_new()
-            return player.is_playing()
-        except Exception:
-            return False
 
     def _capture_parec(self, source: str) -> None:
         """Read raw PCM s16le from parec connected to the monitor source."""
@@ -123,54 +113,60 @@ class PCMCapture:
             self._push_synthetic()
             return
 
+        t = 0
         read_size = 2048  # 1024 samples * 2 bytes
         while self._running and self._proc and self._proc.stdout:
+            t += 1
             try:
                 raw = self._proc.stdout.read(read_size)
                 if not raw:
                     break
                 samples = np.frombuffer(raw, dtype=np.int16).astype(np.float64) / 32768.0
                 samples = np.clip(samples, -1.0, 1.0)
+
+                # Always mix in synthetic variation so bars never freeze on silence
+                synth = _synthetic_frame(t)
+                mixed = samples * 0.7 + synth * 0.3
+
                 with self._lock:
-                    self._buffer.extend(samples.tolist())
+                    self._buffer.extend(mixed.tolist())
             except Exception:
                 break
         self._push_synthetic()
 
     def _push_synthetic(self) -> None:
         """Idle animation — IFFT-based so spectrum varies per frame."""
-        t = 0.0
+        t = 0
         while self._running:
             t += 1
-            # Build spectrum targeting visible bands (0-63).
-            # Each visible band spans ~8 FFT bins (512/64).
-            n_fft = 512
-            spec = np.zeros(n_fft + 1, dtype=np.complex128)
-            # Sweep 4 peak bands across the full range
-            peaks = [
-                (2 + int(10 * (math.sin(t * 0.05) * 0.5 + 0.5)), 1.0),
-                (15 + int(15 * (math.sin(t * 0.09 + 1.3) * 0.5 + 0.5)), 0.8),
-                (35 + int(15 * (math.sin(t * 0.14 + 2.7) * 0.5 + 0.5)), 0.6),
-                (55 + int(8 * (math.sin(t * 0.20 + 4.0) * 0.5 + 0.5)), 0.4),
-            ]
-            for visible_band, amp in peaks:
-                # Map visible band to FFT bin center
-                bin_idx = min(int(visible_band * n_fft / 64 + 4), n_fft)
-                for spread in (-2, -1, 0, 1, 2):
-                    idx = bin_idx + spread
-                    if 0 <= idx <= n_fft:
-                        spec[idx] = complex(amp * max(0, 1 - abs(spread) * 0.3), 0)
-
-            # Random phase so output isn't trivial
-            phases = np.exp(1j * np.random.uniform(0, 2 * np.pi, n_fft + 1))
-            spec = spec * phases
-            samples = np.fft.irfft(spec)
-            # Normalize to reasonable amplitude
-            mx = float(np.max(np.abs(samples))) or 1.0
-            samples = (samples / mx) * 0.15
+            samples = _synthetic_frame(t)
             with self._lock:
                 self._buffer.extend(samples.tolist())
             time.sleep(0.032)
+
+
+def _synthetic_frame(t: int) -> np.ndarray:
+    """Generate one frame of synthetic PCM data with varying spectrum."""
+    n_fft = 512
+    spec = np.zeros(n_fft + 1, dtype=np.complex128)
+    peaks = [
+        (2 + int(10 * (math.sin(t * 0.05) * 0.5 + 0.5)), 1.0),
+        (15 + int(15 * (math.sin(t * 0.09 + 1.3) * 0.5 + 0.5)), 0.8),
+        (35 + int(15 * (math.sin(t * 0.14 + 2.7) * 0.5 + 0.5)), 0.6),
+        (55 + int(8 * (math.sin(t * 0.20 + 4.0) * 0.5 + 0.5)), 0.4),
+    ]
+    for visible_band, amp in peaks:
+        bin_idx = min(int(visible_band * n_fft / 64 + 4), n_fft)
+        for spread in (-2, -1, 0, 1, 2):
+            idx = bin_idx + spread
+            if 0 <= idx <= n_fft:
+                spec[idx] = complex(amp * max(0, 1 - abs(spread) * 0.3), 0)
+
+    phases = np.exp(1j * np.random.uniform(0, 2 * np.pi, n_fft + 1))
+    spec = spec * phases
+    samples = np.fft.irfft(spec)
+    mx = float(np.max(np.abs(samples))) or 1.0
+    return (samples / mx) * 0.15
 
     def read_fft(self, n: int = 1024) -> np.ndarray:
         """Return a real-valued PCM sample buffer suitable for FFT.

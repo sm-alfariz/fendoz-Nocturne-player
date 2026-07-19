@@ -41,16 +41,15 @@ class RingVisualizer(QWidget):
         self._reduce_motion = False
         self._frame = 0
 
-        # 30 fps timer
+        # 30 fps timer — always running for idle animation
         self._timer = QTimer(self)
         self._timer.setInterval(33)
         self._timer.timeout.connect(self.update)
+        self._timer.start()
 
     def set_spectrum(self, data: np.ndarray) -> None:
         """Receive FFT magnitudes from AudioWorker."""
         self._spectrum = data
-        if not self._timer.isActive() and not self._reduce_motion:
-            self._timer.start()
 
     def set_artwork(self, pixmap: Optional[QPixmap]) -> None:
         self._artwork = pixmap
@@ -168,12 +167,11 @@ class SpectrumBar(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(33)
         self._timer.timeout.connect(self.update)
+        self._timer.start()
 
     def set_spectrum(self, data: np.ndarray) -> None:
         self._spectrum = data
         self._has_signal = bool(np.any(data > 0.01))
-        if not self._timer.isActive():
-            self._timer.start()
 
     def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)
