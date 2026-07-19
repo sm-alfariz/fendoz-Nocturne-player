@@ -335,6 +335,7 @@ class MainWindow(QWidget):
         if cfg.closeToTray.value:
             self.setAttribute(Qt.WA_QuitOnClose, False)
             self.tray_icon.show()
+            QTimer.singleShot(0, self._remove_close_button)
 
         # ── Resume playback on startup ────────────────────────────────
         QTimer.singleShot(0, self.ctrl.resume_playback)
@@ -694,21 +695,18 @@ class MainWindow(QWidget):
             self.mini_player._timer.stop()
 
 
+    def _remove_close_button(self) -> None:
+        """Strip the OS close button from title bar."""
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
+        self.show()
+
     def closeEvent(self, event) -> None:
-        """Override close — hide to tray instead of quitting."""
+        """On tray mode, ignore close — user must use Exit button or tray."""
         if cfg.closeToTray.value and self.tray_icon:
             self.hide()
             if self.mini_player and self.mini_player.isVisible():
                 self.mini_player.hide()
             self.tray_icon.show()
-            # Keep app alive on Wayland — invisible window so Qt sees a window
-            if not getattr(self, '_keeper', None):
-                self._keeper = QWidget()
-            self._keeper.setWindowFlags(Qt.Window | Qt.Tool | Qt.FramelessWindowHint)
-            self._keeper.setAttribute(Qt.WA_ShowWithoutActivating)
-            self._keeper.setFixedSize(0, 0)
-            self._keeper.show()
-            self._keeper.raise_()
             return
         event.accept()
         self._really_quit()
