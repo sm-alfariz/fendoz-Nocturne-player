@@ -697,17 +697,18 @@ class MainWindow(QWidget):
     def closeEvent(self, event) -> None:
         """Override close — hide to tray instead of quitting."""
         if cfg.closeToTray.value and self.tray_icon:
-            event.ignore()
             self.hide()
             if self.mini_player and self.mini_player.isVisible():
                 self.mini_player.hide()
             self.tray_icon.show()
-            # Keep app alive on Wayland where event.ignore() is ignored.
-            # Create a hidden keeper widget so QApplication doesn't see "no windows".
-            if not hasattr(self, '_keeper') or not self._keeper:
+            # Keep app alive on Wayland — invisible window so Qt sees a window
+            if not getattr(self, '_keeper', None):
                 self._keeper = QWidget()
-                self._keeper.setAttribute(Qt.WA_DontShowOnScreen, True)
-                self._keeper.show()
+            self._keeper.setWindowFlags(Qt.Window | Qt.Tool | Qt.FramelessWindowHint)
+            self._keeper.setAttribute(Qt.WA_ShowWithoutActivating)
+            self._keeper.setFixedSize(0, 0)
+            self._keeper.show()
+            self._keeper.raise_()
             return
         event.accept()
         self._really_quit()
