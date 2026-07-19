@@ -192,7 +192,7 @@ class StageWidget(QWidget):
         self.spectrum = SpectrumBar(self)
         self.spectrum.setFixedHeight(96)
         layout.addSpacing(30)
-        layout.addWidget(self.spectrum, 0, Qt.AlignCenter)
+        layout.addWidget(self.spectrum)
 
         layout.addStretch()
 
