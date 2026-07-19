@@ -10,6 +10,7 @@ Falls back to synthetic data when no monitor source is available.
 from __future__ import annotations
 
 import logging
+import math
 import subprocess
 import threading
 import time
@@ -88,10 +89,20 @@ class PCMCapture:
 
     def _run(self) -> None:
         src = self._resolve_monitor()
-        if src:
+        if src and self._player_check():
             self._capture_parec(src)
         else:
             self._push_synthetic()
+
+    def _player_check(self) -> bool:
+        """Only use real PCM capture when something is playing."""
+        try:
+            import vlc
+            inst = vlc.Instance("--quiet")
+            player = inst.media_player_new()
+            return player.is_playing()
+        except Exception:
+            return False
 
     def _capture_parec(self, source: str) -> None:
         """Read raw PCM s16le from parec connected to the monitor source."""
@@ -127,25 +138,55 @@ class PCMCapture:
         self._push_synthetic()
 
     def _push_synthetic(self) -> None:
-        """Idle animation when no real audio source is available."""
-        phase = 0.0
+        """Idle animation — IFFT-based so spectrum varies per frame."""
+        t = 0.0
         while self._running:
-            phase += 0.35
-            samples = 0.08 * np.sin(np.linspace(0, 6 * np.pi, 256) + phase)
+            t += 1
+            # Build spectrum targeting visible bands (0-63).
+            # Each visible band spans ~8 FFT bins (512/64).
+            n_fft = 512
+            spec = np.zeros(n_fft + 1, dtype=np.complex128)
+            # Sweep 4 peak bands across the full range
+            peaks = [
+                (2 + int(10 * (math.sin(t * 0.05) * 0.5 + 0.5)), 1.0),
+                (15 + int(15 * (math.sin(t * 0.09 + 1.3) * 0.5 + 0.5)), 0.8),
+                (35 + int(15 * (math.sin(t * 0.14 + 2.7) * 0.5 + 0.5)), 0.6),
+                (55 + int(8 * (math.sin(t * 0.20 + 4.0) * 0.5 + 0.5)), 0.4),
+            ]
+            for visible_band, amp in peaks:
+                # Map visible band to FFT bin center
+                bin_idx = min(int(visible_band * n_fft / 64 + 4), n_fft)
+                for spread in (-2, -1, 0, 1, 2):
+                    idx = bin_idx + spread
+                    if 0 <= idx <= n_fft:
+                        spec[idx] = complex(amp * max(0, 1 - abs(spread) * 0.3), 0)
+
+            # Random phase so output isn't trivial
+            phases = np.exp(1j * np.random.uniform(0, 2 * np.pi, n_fft + 1))
+            spec = spec * phases
+            samples = np.fft.irfft(spec)
+            # Normalize to reasonable amplitude
+            mx = float(np.max(np.abs(samples))) or 1.0
+            samples = (samples / mx) * 0.15
             with self._lock:
                 self._buffer.extend(samples.tolist())
-            time.sleep(0.04)
+            time.sleep(0.032)
 
     def read_fft(self, n: int = 1024) -> np.ndarray:
-        """Return a real-valued PCM sample buffer suitable for FFT."""
+        """Return a real-valued PCM sample buffer suitable for FFT.
+        Consumes the samples so each call returns fresh data.
+        """
         with self._lock:
             if not self._buffer:
                 return self._build_fallback_window(n)
-            samples = np.asarray(list(self._buffer), dtype=np.float64)
-            if len(samples) > n:
-                samples = samples[-n:]
+
+            # Take up to n samples and remove them from the buffer
+            count = min(len(self._buffer), n)
+            samples = np.asarray([self._buffer.popleft() for _ in range(count)], dtype=np.float64)
 
         samples = np.nan_to_num(samples, nan=0.0, posinf=0.0, neginf=0.0)
+        if len(samples) < n:
+            samples = np.pad(samples, (0, n - len(samples)))
         mx = float(np.max(np.abs(samples))) if samples.size else 0.0
         if mx > 0:
             samples = np.clip(samples / mx, -1.0, 1.0)
