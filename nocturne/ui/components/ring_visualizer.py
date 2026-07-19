@@ -36,6 +36,7 @@ class RingVisualizer(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._spectrum: np.ndarray = np.zeros(64)
+        self._smooth: np.ndarray = np.zeros(64)
         self._artwork: Optional[QPixmap] = None
         self._reduce_motion = False
         self._frame = 0
@@ -69,17 +70,21 @@ class RingVisualizer(QWidget):
         cx, cy = w // 2, h // 2
 
         # ── Ring segments around album art ────────────────────────────
-        base_r = 108  # ring starts just outside album art edge
+        base_r = 108
         segments = 90
         has_signal = bool(np.any(self._spectrum > 0.01))
+
+        # Smooth spectrum for ring
+        for i in range(len(self._spectrum)):
+            val = max(0.0, min(1.0, abs(float(self._spectrum[i]))))
+            self._smooth[i] = self._smooth[i] * 0.82 + val * 0.18
 
         for i in range(segments):
             angle = (i / segments) * math.pi * 2 + math.pi * 2 * self._frame * 0.045
 
             if has_signal:
                 idx = int(i / segments * len(self._spectrum))
-                magnitude = max(0.0, min(1.0, abs(float(self._spectrum[idx]))))
-                n = magnitude
+                n = self._smooth[idx]
             else:
                 n = math.sin(self._frame * 0.045 + i * 0.28) * 0.5 + math.sin(self._frame * 0.045 * 1.7 + i * 0.12) * 0.3
 
@@ -151,11 +156,13 @@ class RingVisualizer(QWidget):
 
 
 class SpectrumBar(QWidget):
-    """Horizontal spectrum visualizer bar (mockup: 64 bars with gradient)."""
+    """Horizontal spectrum visualizer bar with peak hold + smooth decay."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._spectrum: np.ndarray = np.zeros(64)
+        self._smooth: np.ndarray = np.zeros(64)
+        self._peak: np.ndarray = np.zeros(64)
         self._has_signal = False
         self._phase = 0.0
         self._timer = QTimer(self)
@@ -177,33 +184,49 @@ class SpectrumBar(QWidget):
         if n == 0:
             return
 
-        painter.setPen(Qt.NoPen)
         spacing = 3
         bar_w = max(2, (w - (n - 1) * spacing) / n)
 
+        # Update smoothed values and peaks
         for i in range(n):
             if self._has_signal:
-                mag = max(0.0, min(1.0, abs(float(self._spectrum[i]))))
+                target = max(0.0, min(1.0, abs(float(self._spectrum[i]))))
             else:
                 base = math.sin(self._phase + i * 0.35) * 0.5 + 0.5
-                import random as _random
-                noise = _random.random() * 0.35
-                mag = min(1.0, base * 0.7 + noise)
+                noise = __import__('random').random() * 0.35
+                target = min(1.0, base * 0.7 + noise)
 
-            bh = max(4, mag * h * 0.94)
+            # Smooth decay toward target
+            self._smooth[i] = self._smooth[i] * 0.82 + target * 0.18
+            # Peak hold — stays until new peak or slow decay
+            if target >= self._peak[i]:
+                self._peak[i] = target
+            else:
+                self._peak[i] *= 0.94
+
+        painter.setPen(Qt.NoPen)
+        for i in range(n):
+            bh = max(4, self._smooth[i] * h * 0.94)
+            peak_h = max(4, self._peak[i] * h * 0.94)
             x = i * (bar_w + spacing)
 
-            # Gradient (mockup: accent → primary 65% → rgba(30,136,229,0.25))
+            # Bar gradient (mockup: accent → primary 65% → rgba(30,136,229,0.25))
             gradient = QLinearGradient(0, h, 0, 0)
             gradient.setColorAt(0, QColor(Color.PRIMARY))
             gradient.setColorAt(0.65, QColor(Color.ACCENT))
             gradient.setColorAt(1, QColor(30, 136, 229, 64))
             painter.setBrush(QBrush(gradient))
-
             opacity = 0.55 + (bh / h) * 0.45
             painter.setOpacity(opacity)
             painter.drawRoundedRect(
                 int(x), int(h - bh), int(bar_w), int(bh), 4, 4
+            )
+
+            # Peak dot
+            painter.setOpacity(0.9)
+            painter.setBrush(QBrush(QColor(Color.ACCENT_SECONDARY)))
+            painter.drawRoundedRect(
+                int(x), int(h - peak_h - 2), int(bar_w), 3, 2, 2
             )
 
         painter.setOpacity(1.0)
