@@ -371,7 +371,7 @@ class MainWindow(QWidget):
         nav.addItem(
             routeKey="playlist_section",
             icon=FIF.ALBUM,
-            text="Playlist",
+            text="My Playlist",
             position=NavigationItemPosition.SCROLL,
         )
         for pl in pm.list_all():
