@@ -219,17 +219,23 @@ class MainWindowController(Controller):
 
     def _on_vlc_media_changed(self) -> None:
         """VLC list player advanced — sync current track and UI."""
-        path = self.player_engine.current_media_path
-        if not path or not self._playback_queue:
+        if not self._playback_queue:
             self._current_track = None
             return
-        # Normalise both sides for comparison
-        from pathlib import Path as PPath
-        target = str(PPath(path).resolve())
-        track = next(
-            (t for t in self._playback_queue if t.path and str(PPath(t.path).resolve()) == target),
-            None,
-        )
+        idx = self.player_engine.list_index
+        if 0 <= idx < len(self._playback_queue):
+            track = self._playback_queue[idx]
+        else:
+            # Fallback: match by path
+            path = self.player_engine.current_media_path
+            if not path:
+                return
+            from pathlib import Path as PPath
+            target = str(PPath(path).resolve())
+            track = next(
+                (t for t in self._playback_queue if t.path and str(PPath(t.path).resolve()) == target),
+                None,
+            )
         if track:
             self._save_lyrics_offset_for_current()
             self._current_track = track

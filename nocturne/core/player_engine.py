@@ -85,6 +85,10 @@ class PlayerEngine:
     def previous(self) -> None:
         self._list_player.previous()
 
+    @property
+    def list_index(self) -> int:
+        return self._list_player.get_playlist_index()
+
     def seek(self, ms: int) -> None:
         self._player.set_time(ms)
 
