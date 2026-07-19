@@ -9,6 +9,7 @@ responsive (FR-1.1–1.2, FR-5.5).
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 from pathlib import Path
@@ -17,6 +18,8 @@ from typing import Optional
 from mutagen import File as MutagenFile
 
 from nocturne.data.models import Track
+
+logger = logging.getLogger(__name__)
 
 
 class ScanSignals:
@@ -89,7 +92,7 @@ class LibraryScanner:
         for folder in folders:
             if not folder.is_dir():
                 continue
-            for root, dirs, fnames in os.walk(str(folder)):
+            for root, _dirs, fnames in os.walk(str(folder)):
                 for fname in fnames:
                     ext = Path(fname).suffix.lower()
                     if ext in self.SUPPORTED_EXTENSIONS:
@@ -112,6 +115,7 @@ class LibraryScanner:
             if mf is None:
                 return None
         except Exception:
+            logger.warning("Failed to open file: %s", path)
             return None
 
         def _tag(raw):
@@ -176,7 +180,7 @@ class LibraryScanner:
                     if hasattr(pic, "picture") and pic.picture:
                         return pic.picture[0].data
         except Exception:
-            pass
+            logger.warning("Failed to extract artwork")
         return None
 
     def _extract_sylt(self, mf) -> Optional[str]:
@@ -193,7 +197,7 @@ class LibraryScanner:
                     lines.append(f"[{m:02d}:{s:02d}.{ms:03d}]{text}")
                 return "\n".join(lines)
         except Exception:
-            pass
+            logger.warning("Failed to extract SYLT")
         return None
 
     def _resolve_album(self, album_title: Optional[str], artist: Optional[str], artwork_blob: Optional[bytes]) -> Optional[int]:

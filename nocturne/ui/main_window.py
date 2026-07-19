@@ -8,6 +8,7 @@ Business logic is delegated to MainWindowController.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from typing import Optional
@@ -48,6 +49,8 @@ from nocturne.common.signal_bus import signalBus
 from nocturne.ui.controllers import MainWindowController
 from nocturne.data.db import get_connection
 from nocturne.data.models import Track
+
+logger = logging.getLogger(__name__)
 
 
 class LogoMark(QWidget):
@@ -235,7 +238,7 @@ class MainWindow(QWidget):
         self._views = QStackedWidget()
         self._views.setStyleSheet(f"background:{Color.BACKGROUND};")
         self._pages: dict[str, QWidget] = {}
-        for key, label, icon, route in self.NAV_ITEMS:
+        for key, label, _icon, _route in self.NAV_ITEMS:
             if key == "home":
                 w = HomeInterface(self)
                 w.track_activated.connect(self._play_track)
@@ -517,7 +520,7 @@ class MainWindow(QWidget):
                                     pix = p
                                     break
             except Exception:
-                pass
+                logger.warning("Failed to extract artwork from file: %s", track.path)
 
         if pix:
             self.stage.ring.set_artwork(pix)

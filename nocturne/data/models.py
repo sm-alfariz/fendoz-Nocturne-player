@@ -31,7 +31,7 @@ class Track:
     def from_row(cls, row: sqlite3.Row) -> "Track":
         field_names = set(cls.__dataclass_fields__)  # only known fields
         keys = [k for k in row.keys() if k in field_names]
-        return cls(**dict(zip(keys, [row[k] for k in keys])))
+        return cls(**dict(zip(keys, [row[k] for k in keys], strict=True)))
 
     @classmethod
     def from_sc_dict(cls, data: dict) -> Track:
@@ -56,7 +56,7 @@ class Album:
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> "Album":
         keys = [k for k in row.keys() if k in set(cls.__dataclass_fields__)]
-        return cls(**dict(zip(keys, [row[k] for k in keys])))
+        return cls(**dict(zip(keys, [row[k] for k in keys], strict=True)))
 
 
 @dataclass

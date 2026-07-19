@@ -52,7 +52,8 @@ def _exception_hook(exc_type, exc_value, exc_tb) -> None:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(log_entry)
     except Exception:
-        pass  # Fail silently — don't crash the crash handler
+        import logging
+        logging.getLogger(__name__).warning("Failed to write crash log")
 
     # Still print to stderr so user sees it in terminal
     sys.__excepthook__(exc_type, exc_value, exc_tb)

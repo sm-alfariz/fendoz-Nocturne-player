@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import math
+import shutil
 import subprocess
 import threading
 import time
@@ -38,7 +39,7 @@ class PCMCapture:
         """Find the PulseAudio monitor source for the default sink."""
         try:
             r = subprocess.run(
-                ["pactl", "info"],
+                [shutil.which("pactl") or "pactl", "info"],
                 capture_output=True, text=True, timeout=3,
             )
             if r.returncode != 0:
@@ -53,7 +54,7 @@ class PCMCapture:
             mon = f"{sink}.monitor"
             # verify it exists
             r2 = subprocess.run(
-                ["pactl", "list", "short", "sources"],
+                [shutil.which("pactl") or "pactl", "list", "short", "sources"],
                 capture_output=True, text=True, timeout=3,
             )
             if mon in r2.stdout:
@@ -79,7 +80,7 @@ class PCMCapture:
             try:
                 self._proc.terminate()
             except Exception:
-                pass
+                logger.exception("Failed to terminate parec")
             self._proc = None
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=1.0)
@@ -98,7 +99,7 @@ class PCMCapture:
         """Read raw PCM s16le from parec connected to the monitor source."""
         try:
             self._proc = subprocess.Popen(
-                ["parec",
+                [shutil.which("parec") or "parec",
                  f"--device={source}",
                  "--format=s16le",
                  "--channels=1",
@@ -131,6 +132,7 @@ class PCMCapture:
                 with self._lock:
                     self._buffer.extend(mixed.tolist())
             except Exception:
+                logger.exception("parec read error, falling back to synthetic")
                 break
         self._push_synthetic()
 

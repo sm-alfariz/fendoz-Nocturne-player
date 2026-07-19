@@ -8,8 +8,12 @@ Emits processed spectrum data via Qt signals.  Never touches the main thread.
 from __future__ import annotations
 
 
+import logging
+
 import numpy as np
 from PySide6.QtCore import QThread, Signal
+
+logger = logging.getLogger(__name__)
 
 
 class AudioWorker(QThread):
@@ -71,7 +75,7 @@ class AudioWorker(QThread):
 
                 self.spectrum_ready.emit(grouped)
             except Exception:
-                pass
+                logger.exception("FFT processing failed")
 
             self.msleep(33)  # ~30 fps
 
