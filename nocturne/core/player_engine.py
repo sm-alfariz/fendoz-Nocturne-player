@@ -87,7 +87,10 @@ class PlayerEngine:
 
     @property
     def list_index(self) -> int:
-        return self._list_player.get_playlist_index()
+        try:
+            return self._list_player.get_playlist_index()
+        except Exception:
+            return -1
 
     def seek(self, ms: int) -> None:
         self._player.set_time(ms)
