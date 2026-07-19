@@ -48,6 +48,7 @@ class PlaylistDetail(QWidget):
         self.add_sc_btn.clicked.connect(self._add_soundcloud)
         self.add_btn = QPushButton("Add Track")
         self.add_btn.setFixedHeight(30)
+        self.add_btn.clicked.connect(self._add_track)
         self.del_btn = QPushButton("Delete Playlist")
         self.del_btn.setStyleSheet("color: #F472B6;")
         self.del_btn.setFixedHeight(30)
@@ -97,6 +98,32 @@ class PlaylistDetail(QWidget):
                 meta["stream_url"] = get_stream(meta.get("source_url", ""))
             track = upsert_sc_track(meta)
             pm.add_track(self._playlist_id, track.id)
+        self.load(self._playlist_id)
+
+    def _add_track(self) -> None:
+        if self._playlist_id is None:
+            return
+        from PySide6.QtWidgets import QFileDialog
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "Add Tracks", "", "Audio files (*.mp3 *.flac *.wav *.ogg *.m4a)"
+        )
+        if not paths:
+            return
+        from nocturne.data.db import get_connection
+        conn = get_connection()
+        pm = PlaylistManager()
+        added = 0
+        for p in paths:
+            row = conn.execute(
+                "SELECT id FROM tracks WHERE path = ?", (p,)
+            ).fetchone()
+            if row:
+                pm.add_track(self._playlist_id, row[0])
+                added += 1
+        if added:
+            InfoBar.success(self, "Add Track", f"{added} track{'s' if added > 1 else ''} added", duration=2000)
+        else:
+            InfoBar.warning(self, "Add Track", "No tracks found in library. Scan your music first.", duration=3000)
         self.load(self._playlist_id)
 
     def _on_double_click(self, index) -> None:
