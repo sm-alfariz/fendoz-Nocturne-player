@@ -206,7 +206,7 @@ class PlayerBar(QWidget):
         )
 
         self.shuffle_btn = MediaPlayBarButton(self)
-        self.shuffle_btn.setIcon(FIF.ARROW_DOWN.icon())
+        self.shuffle_btn.setText("🔀")
         self.shuffle_btn.setCheckable(True)
         self.shuffle_btn.clicked.connect(self._on_shuffle)
         self.shuffle_btn.setStyleSheet(qss)
