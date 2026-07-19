@@ -210,13 +210,11 @@ class PlayerBar(QWidget):
         self.shuffle_btn.clicked.connect(self._on_shuffle)
         self.shuffle_btn.setStyleSheet(qss)
 
-        self.prev_btn = _NavButton(FIF.SKIP_BACK.icon())
+        self.prev_btn = _NavButton("◀◀")
         self.prev_btn.clicked.connect(self.prev_requested.emit)
-        self.prev_btn.setStyleSheet(qss)
 
-        self.next_btn = _NavButton(FIF.SKIP_FORWARD.icon())
+        self.next_btn = _NavButton("▶▶")
         self.next_btn.clicked.connect(self.next_requested.emit)
-        self.next_btn.setStyleSheet(qss)
 
         self.repeat_btn = MediaPlayBarButton(self)
         self.repeat_btn.setIcon(FIF.SYNC.icon())
@@ -286,9 +284,14 @@ class PlayerBar(QWidget):
 
 
 class _NavButton(MediaPlayBarButton):
-    """Nav button for prev/next."""
+    """Nav button for prev/next with text label."""
 
-    def __init__(self, icon, parent=None) -> None:
+    def __init__(self, text: str, parent=None) -> None:
         super().__init__(parent)
-        self.setIcon(icon)
-        self.setFixedSize(36, 36)
+        self.setText(text)
+        self.setFixedSize(32, 32)
+        self.setStyleSheet(
+            f"MediaPlayBarButton{{background:transparent;border:none;color:{Color.TEXT_PRIMARY};font-size:16px;font-weight:bold;}}"
+            f"MediaPlayBarButton:hover{{color:{Color.ACCENT};}}"
+        )
+        self._icon_override = None
