@@ -36,6 +36,26 @@ class Language(Enum):
     AUTO = QLocale()
 
 
+class PlayerBackend(Enum):
+    """Audio backend enumeration"""
+
+    VLC = "VLC (libvlc)"
+    QT = "Built-in (QMediaPlayer)"
+
+
+class PlayerBackendSerializer(ConfigSerializer):
+    """PlayerBackend serializer"""
+
+    def serialize(self, backend):
+        return backend.value
+
+    def deserialize(self, value: str):
+        for b in PlayerBackend:
+            if b.value == value:
+                return b
+        return PlayerBackend.VLC
+
+
 class LanguageSerializer(ConfigSerializer):
     """Language serializer"""
 
@@ -80,6 +100,16 @@ class Config(QConfig):
 
     # Accessibility
     reduceMotion = ConfigItem("Accessibility", "ReduceMotion", False, BoolValidator())
+
+    # Audio backend
+    playerBackend = OptionsConfigItem(
+        "Player",
+        "Backend",
+        PlayerBackend.VLC,
+        OptionsValidator(PlayerBackend),
+        PlayerBackendSerializer(),
+        restart=True,
+    )
 
     # Online / Privacy (Fase 2)
     onlineEnabled = ConfigItem("Online", "Enabled", False, BoolValidator())

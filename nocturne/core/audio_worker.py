@@ -7,7 +7,6 @@ Emits processed spectrum data via Qt signals.  Never touches the main thread.
 
 from __future__ import annotations
 
-import math
 
 import numpy as np
 from PySide6.QtCore import QThread, Signal

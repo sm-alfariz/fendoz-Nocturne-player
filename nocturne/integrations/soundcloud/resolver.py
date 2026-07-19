@@ -15,7 +15,6 @@ Interface publik:
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Optional
@@ -250,7 +249,7 @@ def resolve_url(url: str) -> Optional[dict]:
     # Normalize short URLs first
     resolved_url = _normalize_url(url)
     # Extract track ID from URL via resolve endpoint
-    result = _api_get(f"/resolve", {"url": resolved_url})
+    result = _api_get("/resolve", {"url": resolved_url})
     if result and result.get("kind") == "track":
         meta = _parse_track(result)
         stream = _extract_stream_url(result)
@@ -268,7 +267,7 @@ def get_stream(url: str) -> Optional[str]:
     The stream URL requires the client_id and is time-limited.
     """
     resolved_url = _normalize_url(url)
-    result = _api_get(f"/resolve", {"url": resolved_url})
+    result = _api_get("/resolve", {"url": resolved_url})
     if result:
         return _extract_stream_url(result)
     return None
@@ -325,7 +324,7 @@ def search(query: str, limit: int = 10) -> list[dict]:
 
 def resolve_playlist(url: str) -> list[dict]:
     """Resolve a SoundCloud playlist/set URL → list of track dicts."""
-    result = _api_get(f"/resolve", {"url": url})
+    result = _api_get("/resolve", {"url": url})
     if result and result.get("kind") in ("playlist", "set"):
         tracks = result.get("tracks", [])
         return [_parse_track(t) for t in tracks]

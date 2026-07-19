@@ -8,7 +8,6 @@ FR-3.1–3.4: ±12dB per band, presets, real-time without audio pop.
 from __future__ import annotations
 
 import json
-import sqlite3
 from typing import Optional
 
 import vlc
@@ -32,10 +31,15 @@ BUILTIN_PRESETS = {
 
 
 class Equalizer:
-    """Wraps libVLC equalizer API for 10-band control."""
+    """Wraps libVLC equalizer API for 10-band control.
 
-    def __init__(self, player_instance: vlc.Instance) -> None:
+    When created without a VLC instance (player_instance=None), all methods
+    become no-ops — useful when the Qt backend is active.
+    """
+
+    def __init__(self, player_instance: vlc.Instance | None = None) -> None:
         self._instance = player_instance
+        self._active = player_instance is not None
         self._eq = None
         self._current_preset = "Flat"
 
@@ -45,6 +49,8 @@ class Equalizer:
 
     def apply_preset(self, name: str, custom_values: Optional[list[float]] = None) -> None:
         """Apply a preset by name, or custom values."""
+        if not self._active:
+            return
         if name in BUILTIN_PRESETS:
             values = BUILTIN_PRESETS[name]
         elif custom_values is not None and len(custom_values) == BAND_COUNT:
@@ -56,20 +62,21 @@ class Equalizer:
         self._eq = vlc.AudioEqualizer()
 
         for band_idx in range(BAND_COUNT):
-            # libVLC bands: preamp (index -1), then each band
             self._eq.set_amp_at_index(values[band_idx], band_idx)
 
         self._current_preset = name
 
     def set_band(self, band_index: int, db_value: float) -> None:
         """Adjust a single band in real-time."""
-        if self._eq:
-            self._eq.set_amp_at_index(max(-12.0, min(12.0, db_value)), band_index)
+        if not self._active or not self._eq:
+            return
+        self._eq.set_amp_at_index(max(-12.0, min(12.0, db_value)), band_index)
 
     def attach_to_player(self, player) -> None:
         """Attach equalizer to a libVLC media player."""
-        if self._eq:
-            player.set_equalizer(self._eq)
+        if not self._active or not self._eq:
+            return
+        player.set_equalizer(self._eq)
 
     # ── Preset persistence ────────────────────────────────────────────
 

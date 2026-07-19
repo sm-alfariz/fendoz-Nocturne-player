@@ -1,16 +1,12 @@
 # coding:utf-8
 """
 playlist_view.py — Playlist list and detail view (FR-2.x).
-
-Replaces BlankWidget in NAV_ITEMS. Shows all playlists, click to view
-tracks, create/rename/delete dialogs.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
@@ -23,11 +19,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import FluentIcon as FIF, InfoBar
+from qfluentwidgets import InfoBar
 
-from nocturne.data.db import get_connection
 from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
+from nocturne.ui.controllers.playlist_controller import PlaylistController
 
 
 class PlaylistDetail(QWidget):
@@ -35,8 +31,9 @@ class PlaylistDetail(QWidget):
 
     track_activated = Signal(object)  # Track
 
-    def __init__(self, parent=None):
+    def __init__(self, controller: PlaylistController, parent=None):
         super().__init__(parent)
+        self._controller = controller
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
 
@@ -68,17 +65,14 @@ class PlaylistDetail(QWidget):
         self.track_list.doubleClicked.connect(self._on_double_click)
         layout.addWidget(self.track_list)
 
-        self._pm = PlaylistManager()
         self._playlist_id: int | None = None
         self._tracks: list[Track] = []
 
     def load(self, playlist_id: int) -> None:
         self._playlist_id = playlist_id
-        pm = PlaylistManager()
-        playlists = pm.list_all()
-        name = next((p.name for p in playlists if p.id == playlist_id), "Playlist")
+        name = self._controller.get_name(playlist_id)
         self.title_label.setText(name)
-        self._tracks = pm.get_tracks(playlist_id)
+        self._tracks = self._controller.get_tracks(playlist_id)
         self.track_list.clear()
         for t in self._tracks:
             prefix = "🌐 " if t.source_type == "soundcloud" else ""
@@ -87,19 +81,17 @@ class PlaylistDetail(QWidget):
             self.track_list.addItem(item)
 
     def _add_soundcloud(self) -> None:
-        """Open SoundCloud dialog and add resolved tracks to this playlist."""
         if self._playlist_id is None:
             return
         from PySide6.QtWidgets import QDialog
         from nocturne.ui.components.soundcloud_dialog import SoundCloudDialog
         from nocturne.data.db import upsert_sc_track
-        from nocturne.data.playlist_manager import PlaylistManager
+        from nocturne.integrations.soundcloud.resolver import get_stream
 
         dialog = SoundCloudDialog(self)
         if dialog.exec() != QDialog.Accepted:
             return
         pm = PlaylistManager()
-        from nocturne.integrations.soundcloud.resolver import get_stream
         for meta in dialog.tracks:
             if "stream_url" not in meta:
                 meta["stream_url"] = get_stream(meta.get("source_url", ""))
@@ -120,10 +112,10 @@ class PlaylistView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._controller = PlaylistController(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
 
-        # Header
         header = QHBoxLayout()
         title = QLabel("Playlists")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
@@ -146,7 +138,6 @@ class PlaylistView(QWidget):
         header.addWidget(self.import_btn)
         layout.addLayout(header)
 
-        # Splitter: left list, right detail
         splitter = QSplitter(Qt.Horizontal)
 
         self.playlist_list = QListWidget()
@@ -159,7 +150,7 @@ class PlaylistView(QWidget):
         self.playlist_list.currentRowChanged.connect(self._on_select)
         splitter.addWidget(self.playlist_list)
 
-        self.detail = PlaylistDetail(self)
+        self.detail = PlaylistDetail(self._controller, self)
         self.detail.track_activated.connect(self.track_activated.emit)
         self.detail.del_btn.clicked.connect(self._delete_current)
         splitter.addWidget(self.detail)
@@ -175,8 +166,7 @@ class PlaylistView(QWidget):
     def _reload_list(self) -> None:
         self.playlist_list.blockSignals(True)
         self.playlist_list.clear()
-        pm = PlaylistManager()
-        for p in pm.list_all():
+        for p in self._controller.list_all():
             item = QListWidgetItem(p.name)
             item.setData(Qt.UserRole, p.id)
             self.playlist_list.addItem(item)
@@ -191,8 +181,7 @@ class PlaylistView(QWidget):
     def _create(self) -> None:
         name, ok = QInputDialog.getText(self, "New Playlist", "Playlist name:")
         if ok and name.strip():
-            pm = PlaylistManager()
-            pm.create(name.strip())
+            self._controller.create(name.strip())
             self._reload_list()
 
     def _delete_current(self) -> None:
@@ -204,8 +193,7 @@ class PlaylistView(QWidget):
             QMessageBox.Yes | QMessageBox.No,
         )
         if ret == QMessageBox.Yes:
-            pm = PlaylistManager()
-            pm.delete(pid)
+            self._controller.delete(pid)
             self._reload_list()
             self.detail.title_label.setText("Select a playlist")
             self.detail.track_list.clear()
@@ -217,8 +205,7 @@ class PlaylistView(QWidget):
         )
         if not path:
             return
-        pm = PlaylistManager()
-        result = pm.import_m3u(path)
+        result = self._controller.import_m3u(path)
         if result["missing"]:
             InfoBar.warning(
                 parent=self,
@@ -227,9 +214,10 @@ class PlaylistView(QWidget):
                 duration=3000,
             )
         if result["found"]:
-            pid = pm.create(result["playlist_name"])
+            pid = self._controller.create(result["playlist_name"])
             for t in result["found"]:
-                pm.add_track(pid, t.id)
+                from nocturne.data.playlist_manager import PlaylistManager
+                PlaylistManager().add_track(pid, t.id)
             self._reload_list()
             InfoBar.success(
                 parent=self,

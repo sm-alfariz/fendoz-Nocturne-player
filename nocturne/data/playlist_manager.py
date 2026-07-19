@@ -5,7 +5,6 @@ playlist_manager.py — CRUD, drag-reorder, and .m3u/.m3u8 import/export.
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from pathlib import Path
 from typing import Optional

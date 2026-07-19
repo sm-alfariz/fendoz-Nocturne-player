@@ -8,7 +8,6 @@ FR-8.2: crash log location.
 
 from __future__ import annotations
 
-import os
 
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
@@ -34,6 +33,7 @@ from qfluentwidgets import FluentIcon as FIF
 from nocturne.common.signal_bus import signalBus
 from nocturne.common.style_sheet import StyleSheet
 from nocturne.config.config import FEEDBACK_URL, HELP_URL, VERSION, YEAR, cfg, isWin11
+from nocturne.ui.controllers.settings_controller import SettingsController
 
 
 class SettingInterface(ScrollArea):
@@ -41,15 +41,14 @@ class SettingInterface(ScrollArea):
 
     scan_requested = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, controller: SettingsController, parent=None):
         super().__init__(parent=parent)
+        self._controller = controller
         self.scrollWidget = QWidget()
         self.expandLayout = ExpandLayout(self.scrollWidget)
 
-        # setting label
         self.settingLabel = QLabel(self.tr("Settings"), self)
 
-        # personalization
         self.personalGroup = SettingCardGroup(
             self.tr("Personalization"), self.scrollWidget
         )
@@ -93,7 +92,6 @@ class SettingInterface(ScrollArea):
             parent=self.personalGroup,
         )
 
-        # material
         self.materialGroup = SettingCardGroup(self.tr("Material"), self.scrollWidget)
         self.blurRadiusCard = RangeSettingCard(
             cfg.blurRadius,
@@ -103,7 +101,6 @@ class SettingInterface(ScrollArea):
             self.materialGroup,
         )
 
-        # ── Library ───────────────────────────────────────────────────
         self.libraryGroup = SettingCardGroup(
             self.tr("Music Library"), self.scrollWidget
         )
@@ -125,7 +122,19 @@ class SettingInterface(ScrollArea):
             self.libraryGroup,
         )
 
-        # ── Online ─────────────────────────────────────────────────────
+        self.playbackGroup = SettingCardGroup(
+            self.tr("Playback"), self.scrollWidget
+        )
+
+        self.playerBackendCard = OptionsSettingCard(
+            cfg.playerBackend,
+            FIF.PLAY,
+            self.tr("Audio backend"),
+            self.tr("Choose which audio engine handles playback"),
+            texts=[self.tr("VLC (libvlc)"), self.tr("Built-in (QMediaPlayer)")],
+            parent=self.playbackGroup,
+        )
+
         self.onlineGroup = SettingCardGroup(
             self.tr("Online (SoundCloud)"), self.scrollWidget
         )
@@ -154,13 +163,10 @@ class SettingInterface(ScrollArea):
             self.onlineGroup,
         )
 
-        # ── Accessibility ─────────────────────────────────────────────
         self.accessGroup = SettingCardGroup(
             self.tr("Accessibility"), self.scrollWidget
         )
 
-        # ponytail: reduce_motion config isn't persisted yet — add config
-        # item when full settings persistence is implemented
         self.reduceMotionCard = SwitchSettingCard(
             FIF.VIEW,
             self.tr("Reduce motion"),
@@ -169,7 +175,6 @@ class SettingInterface(ScrollArea):
             self.accessGroup,
         )
 
-        # ── Application ───────────────────────────────────────────────
         self.aboutGroup = SettingCardGroup(self.tr("About"), self.scrollWidget)
         self.helpCard = HyperlinkCard(
             HELP_URL,
@@ -210,7 +215,6 @@ class SettingInterface(ScrollArea):
             self.personalGroup,
         )
 
-        # Crash log location
         self.crashLogCard = PushSettingCard(
             self.tr("Open Log Folder"),
             FIF.DOCUMENT,
@@ -218,8 +222,6 @@ class SettingInterface(ScrollArea):
             self.tr("Application errors are logged locally — no data is sent anywhere."),
             self.aboutGroup,
         )
-        from nocturne.data.db import get_db_path
-        self._crash_log_dir = str(get_db_path().parent)
         self.crashLogCard.clicked.connect(self._open_crash_log_dir)
 
         self.__initWidget()
@@ -254,6 +256,7 @@ class SettingInterface(ScrollArea):
         self.materialGroup.addSettingCard(self.blurRadiusCard)
         self.libraryGroup.addSettingCard(self.folderCard)
         self.libraryGroup.addSettingCard(self.scanCard)
+        self.playbackGroup.addSettingCard(self.playerBackendCard)
         self.onlineGroup.addSettingCard(self.onlineToggleCard)
         self.onlineGroup.addSettingCard(self.cacheOfflineCard)
         self.onlineGroup.addSettingCard(self.lyricsOnlineCard)
@@ -268,6 +271,7 @@ class SettingInterface(ScrollArea):
         self.expandLayout.addWidget(self.personalGroup)
         self.expandLayout.addWidget(self.materialGroup)
         self.expandLayout.addWidget(self.libraryGroup)
+        self.expandLayout.addWidget(self.playbackGroup)
         self.expandLayout.addWidget(self.onlineGroup)
         self.expandLayout.addWidget(self.accessGroup)
         self.expandLayout.addWidget(self.aboutGroup)
@@ -299,8 +303,7 @@ class SettingInterface(ScrollArea):
             self.folderCard.setContent(
                 self.tr(f"Folder: {folder}")
             )
-            # Notify via signal bus
-            signalBus.folder_added.emit(folder)
+            self._controller.add_folder(folder)
 
     def _open_crash_log_dir(self) -> None:
-        QDesktopServices.openUrl(QUrl.fromLocalFile(self._crash_log_dir))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(self._controller.crash_log_dir))

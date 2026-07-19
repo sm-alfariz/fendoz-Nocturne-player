@@ -11,14 +11,11 @@ from __future__ import annotations
 
 import os
 import sqlite3
-import time
 from pathlib import Path
 from typing import Optional
 
-import mutagen
 from mutagen import File as MutagenFile
 
-from nocturne.data.db import get_connection
 from nocturne.data.models import Track
 
 

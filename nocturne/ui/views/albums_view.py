@@ -5,9 +5,10 @@ albums_view.py — Grid card view of albums, click to show tracks.
 
 from __future__ import annotations
 
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QGridLayout
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
@@ -23,7 +24,6 @@ class AlbumCard(CardWidget):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(8)
 
-        # Artwork placeholder
         self.artwork = QLabel()
         self.artwork.setFixedSize(140, 140)
         self.artwork.setAlignment(Qt.AlignCenter)
@@ -77,19 +77,20 @@ class AlbumsView(QWidget):
         self._filter_text = text
         self.load()
 
-    def load(self) -> None:
+    def load(self, rows: list[tuple] | None = None) -> None:
         self._clear_layout()
-        conn = get_connection()
-        query = (
-            "SELECT a.id, a.title, a.artist, a.artwork_blob, COUNT(t.id) as cnt "
-            "FROM albums a LEFT JOIN tracks t ON t.album_id = a.id "
-        )
-        params = []
-        if self._filter_text:
-            query += "WHERE a.title LIKE ? "
-            params.append(f"%{self._filter_text}%")
-        query += "GROUP BY a.id ORDER BY a.title"
-        rows = conn.execute(query, params).fetchall()
+        if rows is None:
+            conn = get_connection()
+            query = (
+                "SELECT a.id, a.title, a.artist, a.artwork_blob, COUNT(t.id) as cnt "
+                "FROM albums a LEFT JOIN tracks t ON t.album_id = a.id "
+            )
+            params: list[str] = []
+            if self._filter_text:
+                query += "WHERE a.title LIKE ? "
+                params.append(f"%{self._filter_text}%")
+            query += "GROUP BY a.id ORDER BY a.title"
+            rows = conn.execute(query, params).fetchall()
         if not rows:
             label = QLabel("Belum ada album.\nScan folder musik di Settings.")
             label.setAlignment(Qt.AlignCenter)

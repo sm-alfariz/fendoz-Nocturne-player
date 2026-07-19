@@ -11,10 +11,8 @@ import os
 
 from PySide6.QtCore import QDir
 from PySide6.QtGui import QFontDatabase
-from qfluentwidgets import qconfig
 
 from nocturne.config.config import ROOT
-from nocturne.ui.theme.tokens import Fonts
 
 
 def apply_theme(app) -> None:

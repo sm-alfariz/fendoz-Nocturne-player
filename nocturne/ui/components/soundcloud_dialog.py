@@ -5,7 +5,7 @@ soundcloud_dialog.py — Dialog for adding SoundCloud tracks/playlists by URL.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,

@@ -9,14 +9,13 @@ active line in gradient accent→primary text.
 from __future__ import annotations
 
 import math
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QLinearGradient, QPainter
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from nocturne.ui.theme.tokens import Color, Fonts
 
 from nocturne.core.lyrics_sync import LyricLine
-from nocturne.ui.theme.tokens import Color, Fonts
 
 
 class _SyncBadge(QLabel):
@@ -207,9 +206,10 @@ class LyricsPanel(QScrollArea):
 
         for i, label in enumerate(self._labels):
             if i == active_idx:
-                # Gradient text via QSS (rich-text fallback)
                 label.setStyleSheet(
-                    f"font-size: 17px; font-weight: 700; padding: 5px 0; color: {Color.TEXT_PRIMARY};"
+                    "font-size: 17px; font-weight: 700; padding: 5px 0; color: #FFFFFF;"
+                    "background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+                    "stop:0 rgba(79,195,247,0.10),stop:1 rgba(30,136,229,0.03));"
                 )
                 target_y = i * self.LINE_HEIGHT - self.height() // 3
                 self.verticalScrollBar().setValue(max(0, target_y))

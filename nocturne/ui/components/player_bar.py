@@ -1,97 +1,130 @@
 # coding:utf-8
 """
-player_bar.py — Bottom control bar: Now Playing, Transport, Volume + EQ.
-
-Matches mockup-nocturne.html: 3-column grid, EQ toggle badge, volume slider,
-shuffle/prev/play/next/repeat with play button gradient.
+player_bar.py — Bottom control bar using SimpleMediaPlayBar (QFluentWidgets).
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QPoint, QTimer, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPen, QPixmap, QPolygon
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QSlider,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QPixmap
+from PySide6.QtMultimedia import QMediaPlayer
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets.multimedia.media_play_bar import (
+    MediaPlayBarBase,
+    MediaPlayBarButton,
+    MediaPlayerBase,
+)
 
 from nocturne.core.player_engine import PlayerEngine
-from nocturne.ui.theme.tokens import Color, Fonts
+from nocturne.ui.theme.tokens import Color
 
 
-class _IconButton(QPushButton):
-    """Flat icon button with hover effect."""
+class _PlayerEngineAdapter(MediaPlayerBase):
+    """Wraps PlayerEngine (VLC) as MediaPlayerBase for SimpleMediaPlayBar.
+    Signals are inherited from MediaPlayerBase.
+    """
 
-    def __init__(self, icon, size=36, parent=None):
+    def __init__(self, engine: PlayerEngine, parent=None) -> None:
         super().__init__(parent)
-        self._normal_icon = icon
-        self.setFixedSize(size, size)
-        self.setFlat(True)
-        self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet(
-            f"QPushButton{{background:transparent;border:none;color:{Color.TEXT_DIM};}}"
-            f"QPushButton:hover{{color:{Color.ACCENT};}}"
+        self._engine = engine
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(500)
+        self._timer.timeout.connect(self._poll)
+        self._timer.start()
+
+    def isPlaying(self) -> bool:
+        return self._engine.is_playing
+
+    def play(self) -> None:
+        self._engine.play()
+
+    def pause(self) -> None:
+        self._engine.pause()
+
+    def stop(self) -> None:
+        self._engine.stop()
+
+    def setPosition(self, position: int) -> None:
+        self._engine.seek(position)
+
+    def setVolume(self, volume: int) -> None:
+        self._engine.volume = volume
+
+    def volume(self) -> int:
+        return self._engine.volume
+
+    def position(self) -> int:
+        return self._engine.position_ms
+
+    def duration(self) -> int:
+        return self._engine.duration_ms
+
+    def setSource(self, media: QUrl) -> None:
+        pass
+
+    def source(self) -> QUrl:
+        return QUrl()
+
+    def mediaStatus(self) -> QMediaPlayer.MediaStatus:
+        return (
+            QMediaPlayer.LoadedMedia
+            if self._engine.is_playing
+            else QMediaPlayer.NoMedia
         )
-        self.setIcon(icon)
+
+    def playbackState(self) -> QMediaPlayer.PlaybackState:
+        return (
+            QMediaPlayer.PlayingState
+            if self._engine.is_playing
+            else QMediaPlayer.StoppedState
+        )
+
+    def setMuted(self, isMuted: bool) -> None:
+        self._engine.volume = 0 if isMuted else 100
+
+    def playbackRate(self) -> float:
+        return 1.0
+
+    def setPlaybackRate(self, rate: float) -> None:
+        pass
+
+    def videoOutput(self) -> QObject:
+        return None
+
+    def _poll(self) -> None:
+        engine = self._engine
+        if not engine:
+            return
+        self.positionChanged.emit(engine.position_ms)
+        self.durationChanged.emit(engine.duration_ms)
+        status = (
+            QMediaPlayer.LoadedMedia
+            if engine.is_playing
+            else QMediaPlayer.NoMedia
+        )
+        self.mediaStatusChanged.emit(status)
 
 
-class _PlayButton(QPushButton):
-    """Play button with gradient circle (mockup style)."""
+class _CustomPlayBar(MediaPlayBarBase):
+    """SimpleMediaPlayBar without internal MediaPlayer — we wire our engine manually."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setFixedSize(42, 42)
-        self.setCursor(Qt.PointingHandCursor)
-        self._playing = False
+        self.hBoxLayout = QHBoxLayout(self)
+        self.hBoxLayout.setContentsMargins(10, 4, 10, 4)
+        self.hBoxLayout.setSpacing(6)
+        self.hBoxLayout.addWidget(self.playButton, 0, Qt.AlignLeft)
+        self.hBoxLayout.addWidget(self.progressSlider, 1)
+        self.hBoxLayout.addWidget(self.volumeButton, 0)
 
-    def set_playing(self, playing: bool) -> None:
-        self._playing = playing
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        r = self.rect()
-
-        # Gradient circle
-        grad = QLinearGradient(0, 0, r.width(), r.height())
-        grad.setColorAt(0, QColor(Color.PRIMARY))
-        grad.setColorAt(1, QColor(Color.ACCENT))
-        painter.setBrush(grad)
-        painter.setPen(Qt.NoPen)
-        painter.drawEllipse(r.adjusted(1, 1, -1, -1))
-
-        # Shadow
-        shadow = QColor(79, 195, 247, 140)
-        painter.setBrush(Qt.NoBrush)
-        pen = QPen(shadow, 4)
-        painter.setPen(pen)
-        painter.drawEllipse(r.adjusted(2, 2, -2, -2))
-
-        # Icon (play / pause triangle)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor("#0B1220"))
-        cx, cy = r.center().x(), r.center().y()
-        if self._playing:
-            # Pause bars
-            painter.drawRect(cx - 7, cy - 8, 4, 16)
-            painter.drawRect(cx + 3, cy - 8, 4, 16)
-        else:
-            # Play triangle
-            poly = QPolygon()
-            poly << QPoint(cx - 5, cy - 8)
-            poly << QPoint(cx - 5, cy + 8)
-            poly << QPoint(cx + 7, cy)
-            painter.drawPolygon(poly)
+        self.progressSlider.setFixedHeight(22)
+        self.setFixedHeight(48)
 
 
 class PlayerBar(QWidget):
-    """Bottom dock — 3-column grid: now-playing | transport | right-controls."""
+    """Bottom dock — now-playing | SimpleMediaPlayBar | EQ badge."""
 
     play_toggled = Signal()
     next_requested = Signal()
@@ -102,147 +135,88 @@ class PlayerBar(QWidget):
         super().__init__(parent)
         self.setFixedHeight(72)
         self.setStyleSheet(
-            f"background:rgba(10,15,30,0.85);"
+            f"background:rgba(10,15,30,0.75);"
             f"border-top:1px solid {Color.BORDER};"
         )
-        self._engine: PlayerEngine | None = None
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(24, 12, 24, 12)
         layout.setSpacing(0)
 
         # ── Left: Now Playing ─────────────────────────────────────────
-        now = QHBoxLayout()
-        now.setSpacing(12)
+        left = QHBoxLayout()
+        left.setSpacing(12)
+
         self.artwork_mini = QLabel()
         self.artwork_mini.setFixedSize(44, 44)
         self.artwork_mini.setStyleSheet(
             f"background:radial-gradient(circle at 35% 30%, #2E4A7D, #101B33 70%);"
             f"border:1px solid {Color.BORDER}; border-radius:11px;"
         )
-        now.addWidget(self.artwork_mini)
+        left.addWidget(self.artwork_mini)
 
         txt = QVBoxLayout()
-        txt.setSpacing(2)
+        txt.setSpacing(4)
         self.track_title = QLabel("No track")
         self.track_title.setStyleSheet(
-            f"color:{Color.TEXT_PRIMARY};font-weight:600;font-size:12.5px;"
+            "color:#fff;font-weight:600;font-size:14px;"
         )
         self.track_artist = QLabel("")
-        self.track_artist.setStyleSheet(f"color:{Color.TEXT_DIM};font-size:11px;")
+        self.track_artist.setStyleSheet("color:rgba(148,163,184,0.8);font-size:12px;")
         txt.addWidget(self.track_title)
         txt.addWidget(self.track_artist)
-        now.addLayout(txt)
-        layout.addLayout(now, 1)
+        left.addLayout(txt)
+        layout.addLayout(left, 1)
 
-        # ── Center: Transport + Progress ──────────────────────────────
-        ctr = QVBoxLayout()
-        ctr.setSpacing(6)
-        ctr.setAlignment(Qt.AlignCenter)
+        # ── Center: SimpleMediaPlayBar ─────────────────────────────────
+        self.bar = _CustomPlayBar(self)
+        self._adapter: _PlayerEngineAdapter | None = None
 
-        # Buttons row
-        btns = QHBoxLayout()
-        btns.setSpacing(20)
-        btns.setAlignment(Qt.AlignCenter)
+        self._add_nav_buttons()
 
-        self.shuffle_btn = _IconButton(FIF.ARROW_DOWN.icon(), 28)
-        self.shuffle_btn.setCheckable(True)
-        self.shuffle_btn.clicked.connect(self._on_shuffle)
-        btns.addWidget(self.shuffle_btn)
+        layout.addWidget(self.bar, 2)
 
-        self.prev_btn = _IconButton(FIF.SKIP_BACK.icon())
-        self.prev_btn.clicked.connect(self.prev_requested.emit)
-        btns.addWidget(self.prev_btn)
-
-        self.play_btn = _PlayButton()
-        self.play_btn.clicked.connect(self._on_play)
-        btns.addWidget(self.play_btn)
-
-        self.next_btn = _IconButton(FIF.SKIP_FORWARD.icon())
-        self.next_btn.clicked.connect(self.next_requested.emit)
-        btns.addWidget(self.next_btn)
-
-        self.repeat_btn = _IconButton(FIF.SYNC.icon(), 28)
-        self.repeat_btn.clicked.connect(self._on_repeat)
-        btns.addWidget(self.repeat_btn)
-        ctr.addLayout(btns)
-
-        # Progress row
-        prog = QHBoxLayout()
-        prog.setSpacing(10)
-        self.time_current = QLabel("0:00")
-        self.time_current.setStyleSheet(
-            f"color:{Color.TEXT_DIM};font-size:10.5px;font-family:'{Fonts.MONO}';"
-        )
-        self.time_current.setFixedWidth(34)
-        self.time_total = QLabel("0:00")
-        self.time_total.setStyleSheet(
-            f"color:{Color.TEXT_DIM};font-size:10.5px;font-family:'{Fonts.MONO}';"
-        )
-        self.time_total.setFixedWidth(34)
-        self.time_total.setAlignment(Qt.AlignRight)
-
-        self.progress_bar = QSlider(Qt.Horizontal)
-        self.progress_bar.setRange(0, 1000)
-        self.progress_bar.setValue(0)
-        self.progress_bar.sliderMoved.connect(self._on_seek)
-        self.progress_bar.setStyleSheet(
-            f"QSlider::groove:horizontal{{height:4px;border-radius:4px;background:{Color.CARD};}}"
-            f"QSlider::handle:horizontal{{width:11px;height:11px;margin:-4px 0;border-radius:6px;"
-            f"background:#fff;box-shadow:0 0 8px {Color.ACCENT};}}"
-            f"QSlider::sub-page:horizontal{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            f"stop:0 {Color.PRIMARY},stop:1 {Color.ACCENT});border-radius:4px;}}"
-        )
-
-        prog.addWidget(self.time_current)
-        prog.addWidget(self.progress_bar, 1)
-        prog.addWidget(self.time_total)
-        ctr.addLayout(prog)
-        layout.addLayout(ctr, 2)
-
-        # ── Right: EQ Toggle + Volume ─────────────────────────────────
+        # ── Right: EQ badge ────────────────────────────────────────────
         right = QHBoxLayout()
-        right.setSpacing(16)
         right.setAlignment(Qt.AlignRight)
+        right.setSpacing(12)
 
-        # EQ badge
         self.eq_label = QLabel("EQ: Flat")
         self.eq_label.setStyleSheet(
-            f"color:{Color.ACCENT};font-size:11px;font-family:'{Fonts.MONO}';"
+            f"color:{Color.ACCENT};font-size:11px;"
             f"background:rgba(79,195,247,0.08);border:1px solid {Color.BORDER};"
             f"padding:6px 10px;border-radius:9px;"
         )
         right.addWidget(self.eq_label)
-
-        # Volume icon
-        self.vol_icon = QLabel()
-        self.vol_icon.setPixmap(FIF.VOLUME.icon().pixmap(15, 15))
-        right.addWidget(self.vol_icon)
-
-        self.volume_slider = QSlider(Qt.Horizontal)
-        self.volume_slider.setRange(0, 200)
-        self.volume_slider.setFixedWidth(100)
-        self.volume_slider.valueChanged.connect(self._on_volume)
-        self.volume_slider.setStyleSheet(
-            f"QSlider::groove:horizontal{{height:4px;border-radius:4px;background:{Color.CARD};}}"
-            f"QSlider::handle:horizontal{{width:0px;}}"
-            f"QSlider::sub-page:horizontal{{background:{Color.ACCENT};border-radius:4px;}}"
-        )
-        right.addWidget(self.volume_slider)
-
         layout.addLayout(right, 1)
 
-        # Progress update timer
-        self._timer = QTimer(self)
-        self._timer.setInterval(500)
-        self._timer.timeout.connect(self._poll_position)
+    def _add_nav_buttons(self) -> None:
+        self.shuffle_btn = MediaPlayBarButton(self)
+        self.shuffle_btn.setIcon(FIF.ARROW_DOWN.icon())
+        self.shuffle_btn.setCheckable(True)
+        self.shuffle_btn.clicked.connect(self._on_shuffle)
+
+        self.prev_btn = _NavButton(FIF.SKIP_BACK.icon())
+        self.prev_btn.clicked.connect(self.prev_requested.emit)
+
+        self.next_btn = _NavButton(FIF.SKIP_FORWARD.icon())
+        self.next_btn.clicked.connect(self.next_requested.emit)
+
+        self.repeat_btn = MediaPlayBarButton(self)
+        self.repeat_btn.setIcon(FIF.SYNC.icon())
+        self.repeat_btn.clicked.connect(self._on_repeat)
+
+        bar = self.bar
+        idx = bar.hBoxLayout.indexOf(bar.progressSlider)
+        for btn in (self.shuffle_btn, self.prev_btn, self.next_btn, self.repeat_btn):
+            bar.hBoxLayout.insertWidget(idx, btn, 0, Qt.AlignLeft)
 
     # ── Engine binding ────────────────────────────────────────────────
 
     def bind_engine(self, engine: PlayerEngine) -> None:
-        self._engine = engine
-        self.volume_slider.setValue(engine.volume)
-        self._timer.start()
+        self._adapter = _PlayerEngineAdapter(engine, self)
+        self.bar.setMediaPlayer(self._adapter)
+        self._adapter.setVolume(engine.volume)
 
     # ── Public updates ────────────────────────────────────────────────
 
@@ -257,66 +231,38 @@ class PlayerBar(QWidget):
             self.artwork_mini.clear()
 
     def set_playing(self, playing: bool) -> None:
-        self.play_btn.set_playing(playing)
+        self.bar.playButton.setPlay(playing)
 
-    def set_progress(self, ms: int) -> None:
-        if not self._engine:
-            
-            return
-        total = self._engine.duration_ms
-        if total > 0:
-            self.progress_bar.setValue(int(ms / total * 1000))
-        self.time_current.setText(self._fmt_time(ms))
-        self.time_total.setText(self._fmt_time(total))
+    def set_volume(self, volume: int) -> None:
+        if self._adapter:
+            self._adapter.setVolume(volume)
 
     def set_eq_preset(self, name: str) -> None:
         self.eq_label.setText(f"EQ: {name}")
 
     # ── Internals ─────────────────────────────────────────────────────
 
-    def _on_play(self) -> None:
-        if self._engine:
-            self._engine.toggle_play()
-            playing = self._engine.is_playing
-            self.set_playing(playing)
-            # MainWindow handles AudioWorker start/stop via this signal
-            from nocturne.common.signal_bus import signalBus
-            signalBus.play_toggled.emit(playing)
-
-    def _on_seek(self, value: int) -> None:
-        if self._engine and self._engine.duration_ms > 0:
-            ms = int(value / 1000 * self._engine.duration_ms)
-            self._engine.seek(ms)
-            self.seek_requested.emit(ms)
-
-    def _on_volume(self, val: int) -> None:
-        if self._engine:
-            self._engine.volume = val
-
     def _on_shuffle(self) -> None:
-        if self._engine:
-            enabled = self._engine.toggle_shuffle()
+        if self._adapter:
+            enabled = self._adapter._engine.toggle_shuffle()
             self.shuffle_btn.setChecked(enabled)
 
     def _on_repeat(self) -> None:
-        if self._engine:
-            mode = self._engine.cycle_repeat()
+        if self._adapter:
+            engine = self._adapter._engine
+            mode = engine.cycle_repeat()
             icons = {"off": FIF.SYNC.icon(), "one": FIF.SYNC.icon(), "all": FIF.SYNC.icon()}
             self.repeat_btn.setIcon(icons.get(mode, FIF.SYNC.icon()))
-            # Visual indicator: accent when active
             accent = "#4FC3F7" if mode != "off" else "inherit"
             self.repeat_btn.setStyleSheet(
-                f"QPushButton{{background:transparent;border:none;color:{accent};}}"
-                f"QPushButton:hover{{color:#4FC3F7;}}"
+                f"MediaPlayBarButton{{background:transparent;border:none;color:{accent};}}"
+                f"MediaPlayBarButton:hover{{color:#4FC3F7;}}"
             )
 
-    def _poll_position(self) -> None:
-        if self._engine and self._engine.is_playing:
-            self.set_progress(self._engine.position_ms)
 
-    @staticmethod
-    def _fmt_time(ms: int) -> str:
-        if ms <= 0:
-            return "0:00"
-        m, s = divmod(ms // 1000, 60)
-        return f"{m}:{s:02d}"
+class _NavButton(MediaPlayBarButton):
+    """Slightly larger nav button for prev/next."""
+
+    def __init__(self, icon, parent=None) -> None:
+        super().__init__(parent)
+        self.setIcon(icon)

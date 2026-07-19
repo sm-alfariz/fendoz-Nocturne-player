@@ -6,10 +6,9 @@ songs_view.py — Sortable / filterable list of all scanned tracks.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, Signal
-from PySide6.QtWidgets import QHeaderView, QLabel, QTableView, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QTableView, QVBoxLayout, QWidget
 from qfluentwidgets import SearchLineEdit
 
-from nocturne.data.db import get_connection
 from nocturne.data.models import Track
 from nocturne.ui.theme.tokens import Color
 
@@ -21,17 +20,10 @@ class SongTableModel(QAbstractTableModel):
         super().__init__(parent)
         self._tracks: list[Track] = []
 
-    def load(self) -> int:
+    def set_tracks(self, tracks: list[Track]) -> None:
         self.beginResetModel()
-        conn = get_connection()
-        rows = conn.execute(
-            "SELECT t.*, a.title AS album_title FROM tracks t "
-            "LEFT JOIN albums a ON t.album_id = a.id "
-            "ORDER BY t.added_at DESC"
-        ).fetchall()
-        self._tracks = [Track.from_row(r) for r in rows]
+        self._tracks = tracks
         self.endResetModel()
-        return len(self._tracks)
 
     def rowCount(self, parent=None) -> int:
         return len(self._tracks)
@@ -46,10 +38,14 @@ class SongTableModel(QAbstractTableModel):
         col = index.column()
 
         if role == Qt.DisplayRole:
-            if col == 0: return str(t.id)
-            if col == 1: return t.title
-            if col == 2: return t.artist or ""
-            if col == 3: return getattr(t, "album_title", "")
+            if col == 0:
+                return str(t.id)
+            if col == 1:
+                return t.title
+            if col == 2:
+                return t.artist or ""
+            if col == 3:
+                return getattr(t, "album_title", "")
             if col == 4:
                 if t.duration_ms is None:
                     return "--:--"
@@ -57,7 +53,8 @@ class SongTableModel(QAbstractTableModel):
                 return f"{m}:{s:02d}"
             if col == 5:
                 return "Online" if t.source_type == "soundcloud" else ""
-            if col == 6: return str(t.added_at)[:10] if t.added_at else ""
+            if col == 6:
+                return str(t.added_at)[:10] if t.added_at else ""
 
         if role == Qt.TextAlignmentRole:
             if col in (0, 4, 5):
@@ -93,7 +90,7 @@ class SongsView(QWidget):
         self.proxy = QSortFilterProxyModel(self)
         self.proxy.setSourceModel(self.model)
         self.proxy.setFilterCaseSensitivity(Qt.CaseInsensitive)
-        self.proxy.setFilterKeyColumn(-1)  # all columns
+        self.proxy.setFilterKeyColumn(-1)
 
         self._empty_label = QLabel("Belum ada lagu.\nPilih folder musik di Settings untuk memulai.")
         self._empty_label.setAlignment(Qt.AlignCenter)
@@ -122,20 +119,21 @@ class SongsView(QWidget):
         )
         layout.addWidget(self.table)
 
-    def load(self) -> None:
-        rows = self.model.load()
+    def load(self, tracks: list[Track] | None = None) -> int:
+        if tracks is not None:
+            self.model.set_tracks(tracks)
+        rows = self.model.rowCount()
         self._empty_label.setVisible(rows == 0)
         self.table.setVisible(rows > 0)
+        return rows
 
     def _filter(self, text: str) -> None:
         self.proxy.setFilterFixedString(text)
 
     def highlight_track(self, track_id: int) -> None:
-        """Highlight the row matching track_id."""
         for row in range(self.model.rowCount()):
             t = self.model.track_at(row)
             if t and t.id == track_id:
-                # Select row in proxy
                 src_idx = self.model.index(row, 0)
                 proxy_idx = self.proxy.mapFromSource(src_idx)
                 self.table.selectRow(proxy_idx.row())

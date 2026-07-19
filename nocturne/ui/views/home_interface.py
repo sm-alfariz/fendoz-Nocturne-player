@@ -5,7 +5,6 @@ home_interface.py — Nocturne home dashboard aligned to the PRD and mockup.
 
 from __future__ import annotations
 
-import sqlite3
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
@@ -13,7 +12,6 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWi
 import numpy as np
 
 from nocturne.common.style_sheet import StyleSheet
-from nocturne.data.db import get_connection
 from nocturne.data.models import Track
 from nocturne.ui.components.ring_visualizer import RingVisualizer
 from qfluentwidgets import ScrollArea
@@ -158,51 +156,41 @@ class HomeInterface(ScrollArea):
         self.vBoxLayout.addWidget(self.banner)
         self.vBoxLayout.setAlignment(Qt.AlignTop)
 
-    def load(self) -> None:
-        """Populate content rows: Continue Listening + Playlists."""
+    def load(
+        self,
+        history: list[tuple[int, str, str]] | None = None,
+        playlists: list[tuple[int, str]] | None = None,
+    ) -> None:
         self._clear_sections()
 
-        conn = get_connection()
-
-        # ── Continue Listening ───────────────────────────────────────
-        rows = conn.execute(
-            "SELECT DISTINCT t.id, t.title, t.artist "
-            "FROM play_history ph "
-            "JOIN tracks t ON t.id = ph.track_id "
-            "ORDER BY ph.played_at DESC LIMIT 5"
-        ).fetchall()
-
-        if rows:
+        if history:
             sec = _Section("Continue Listening", self.view)
-            for track_id, title, artist in rows:
+            for track_id, title, artist in history:
                 card = sec.add_card(title or "?", artist or "")
                 card.clicked.connect(
                     lambda checked=False, tid=track_id: self._play_history_track(tid)
                 )
             self.vBoxLayout.insertWidget(1, sec)
 
-        # ── Playlists ────────────────────────────────────────────────
-        pl_rows = conn.execute(
-            "SELECT id, name FROM playlists ORDER BY created_at DESC LIMIT 6"
-        ).fetchall()
-
-        if pl_rows:
+        if playlists:
             sec = _Section("Playlists", self.view)
-            for pl_id, name in pl_rows:
+            for pl_id, name in playlists:
                 card = sec.add_card(name)
                 card.clicked.connect(
                     lambda checked=False, pid=pl_id: self._open_playlist(pid)
                 )
-            self.vBoxLayout.insertWidget(2 if rows else 1, sec)
+            insert_at = 2 if history else 1
+            self.vBoxLayout.insertWidget(insert_at, sec)
 
     def _clear_sections(self) -> None:
-        """Remove dynamically added sections (keep banner at index 0)."""
         while self.vBoxLayout.count() > 1:
             item = self.vBoxLayout.takeAt(self.vBoxLayout.count() - 1)
             if item and item.widget():
                 item.widget().deleteLater()
 
     def _play_history_track(self, track_id: int) -> None:
+        from nocturne.data.db import get_connection
+        import sqlite3
         conn = get_connection()
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM tracks WHERE id = ?", (track_id,)).fetchone()

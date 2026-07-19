@@ -6,10 +6,11 @@ equalizer_view.py — 10-band equalizer UI with presets.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 from qfluentwidgets import ComboBox, PushButton
 
-from nocturne.core.equalizer import BAND_COUNT, BAND_LABELS, Equalizer
+from nocturne.core.equalizer import BAND_LABELS
+from nocturne.ui.controllers.equalizer_controller import EqualizerController
 from nocturne.ui.theme.tokens import Color
 
 
@@ -26,7 +27,7 @@ class BandSlider(QWidget):
         layout.setSpacing(4)
 
         self.slider = QSlider(Qt.Vertical)
-        self.slider.setRange(-120, 120)  # -12.0 dB to +12.0 dB (x10)
+        self.slider.setRange(-120, 120)
         self.slider.setValue(0)
         self.slider.setTickPosition(QSlider.TicksBothSides)
         self.slider.valueChanged.connect(self._on_value_changed)
@@ -54,40 +55,34 @@ class BandSlider(QWidget):
 class EqualizerView(QWidget):
     """Full equalizer page with sliders + presets."""
 
-    def __init__(self, equalizer: Equalizer, parent=None, assign_callback=None):
+    def __init__(self, controller: EqualizerController, parent=None):
         super().__init__(parent)
-        self._eq = equalizer
-        self._assign_callback = assign_callback
+        self._controller = controller
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        # Title
         title = QLabel("Equalizer")
         title.setStyleSheet("font-size: 24px; font-weight: 700;")
         layout.addWidget(title)
 
-        # Preset selector
         preset_row = QHBoxLayout()
         preset_row.addWidget(QLabel("Preset:"))
         self.preset_combo = ComboBox()
-        self.preset_combo.addItems(list(Equalizer.all_presets().keys()))
+        self.preset_combo.addItems(list(controller.all_presets().keys()))
         self.preset_combo.currentTextChanged.connect(self._on_preset_change)
         preset_row.addWidget(self.preset_combo)
         preset_row.addStretch()
 
-        # Save custom
         self.save_btn = PushButton("Save as custom")
         self.save_btn.clicked.connect(self._save_custom)
         preset_row.addWidget(self.save_btn)
 
-        # Assign to current track
         self.assign_btn = PushButton("Assign to Track")
         self.assign_btn.clicked.connect(self._assign_to_track)
         preset_row.addWidget(self.assign_btn)
         layout.addLayout(preset_row)
 
-        # Sliders
         sliders_row = QHBoxLayout()
         sliders_row.setAlignment(Qt.AlignCenter)
         self._sliders: list[BandSlider] = []
@@ -101,27 +96,25 @@ class EqualizerView(QWidget):
         layout.addStretch()
 
     def _on_preset_change(self, name: str) -> None:
-        presets = Equalizer.all_presets()
+        presets = self._controller.all_presets()
         if name in presets:
             values = presets[name]
             for i, s in enumerate(self._sliders):
                 s.set_value(values[i])
-            self._eq.apply_preset(name)
+            self._controller.apply_preset(name)
 
     def _on_band_changed(self, index: int, db: float) -> None:
-        self._eq.set_band(index, db)
+        self._controller.set_band(index, db)
         self.preset_combo.setCurrentText("Custom")
 
     def _save_custom(self) -> None:
         values = [s.slider.value() / 10.0 for s in self._sliders]
-        self._eq.save_custom_preset("Custom", values)
+        self._controller.save_custom_preset("Custom", values)
 
     def _assign_to_track(self) -> None:
         preset = self.preset_combo.currentText()
-        if self._assign_callback:
-            self._assign_callback(preset)
+        self._controller.assign_to_track(preset)
 
     def load_for_track(self, eq_preset: str | None) -> None:
-        """Set dropdown to the given preset (from track assignment)."""
-        if eq_preset and eq_preset in Equalizer.all_presets():
+        if eq_preset and eq_preset in self._controller.all_presets():
             self.preset_combo.setCurrentText(eq_preset)

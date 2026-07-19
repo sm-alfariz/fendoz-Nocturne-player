@@ -6,7 +6,7 @@ artists_view.py — Grid card view of artists, click to show tracks.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget, QGridLayout, QPushButton
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
@@ -59,20 +59,20 @@ class ArtistsView(QWidget):
         self._filter_text = text
         self.load()
 
-    def load(self) -> None:
-        # Clear existing
+    def load(self, rows: list[tuple[str, int]] | None = None) -> None:
         self._clear_layout()
-        conn = get_connection()
-        query = (
-            "SELECT artist, COUNT(*) as cnt FROM tracks "
-            "WHERE artist IS NOT NULL AND artist != '' "
-        )
-        params = []
-        if self._filter_text:
-            query += "AND artist LIKE ? "
-            params.append(f"%{self._filter_text}%")
-        query += "GROUP BY artist ORDER BY artist"
-        rows = conn.execute(query, params).fetchall()
+        if rows is None:
+            conn = get_connection()
+            query = (
+                "SELECT artist, COUNT(*) as cnt FROM tracks "
+                "WHERE artist IS NOT NULL AND artist != '' "
+            )
+            params: list[str] = []
+            if self._filter_text:
+                query += "AND artist LIKE ? "
+                params.append(f"%{self._filter_text}%")
+            query += "GROUP BY artist ORDER BY artist"
+            rows = conn.execute(query, params).fetchall()
         if not rows:
             label = QLabel("Belum ada artis.\nScan folder musik di Settings.")
             label.setAlignment(Qt.AlignCenter)

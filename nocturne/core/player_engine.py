@@ -96,7 +96,7 @@ class PlayerEngine:
 
     @volume.setter
     def volume(self, val: int) -> None:
-        self._player.audio_set_volume(max(0, min(200, val)))
+        self._player.audio_set_volume(max(0, min(100, val)))
 
     # ── Repeat / shuffle ──────────────────────────────────────────────
 
