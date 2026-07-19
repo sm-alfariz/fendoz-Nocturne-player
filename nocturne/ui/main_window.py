@@ -684,22 +684,19 @@ class MainWindow(QWidget):
     def closeEvent(self, event) -> None:
         """Override close — hide to tray instead of quitting."""
         if cfg.closeToTray.value and self.tray_icon:
-            event.accept()
+            event.ignore()
             self.hide()
             if self.mini_player and self.mini_player.isVisible():
                 self.mini_player.hide()
             self.tray_icon.show()
-            self.tray_icon.showMessage(
-                "Nocturne", "App minimized to tray", QSystemTrayIcon.Information, 2000
-            )
-        else:
-            self.ctrl.audio_worker.stop()
-            self.ctrl.player_engine.save_state()
-            self.ctrl.player_engine.stop()
-            self.ctrl.player_engine.cleanup()
-            self._lyrics_timer.stop()
-            self.mini_player._timer.stop()
-            event.accept()
+            return
+        self.ctrl.audio_worker.stop()
+        self.ctrl.player_engine.save_state()
+        self.ctrl.player_engine.stop()
+        self.ctrl.player_engine.cleanup()
+        self._lyrics_timer.stop()
+        self.mini_player._timer.stop()
+        event.accept()
 
     def _setup_tray(self) -> None:
         icon_path = os.path.join(
