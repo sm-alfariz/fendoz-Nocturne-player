@@ -58,9 +58,12 @@ class MainWindowController(Controller):
             self.equalizer = Equalizer(self.player_engine._instance)
             self.equalizer.apply_preset("Flat")
             self.equalizer.attach_to_player(self.player_engine._player)
-            # Dispatch to main thread — VLC fires end-of-track on libvlc event thread
+            # Dispatch to main thread — VLC fires events on libvlc event thread
             self.player_engine.set_on_end(
                 lambda: QTimer.singleShot(0, self._sync_current_track)
+            )
+            self.player_engine.set_on_media_change(
+                lambda: QTimer.singleShot(0, self._on_vlc_media_changed)
             )
         else:
             self.player_engine = QtPlayerEngine()
@@ -98,7 +101,7 @@ class MainWindowController(Controller):
         return self._current_track
 
     def _play(self, tracks: list[Track], start_index: int = 0) -> None:
-        """Load track into engine — queue stored for next/prev."""
+        """Load all tracks into VLC list player for native next/prev."""
         self._playback_queue = list(tracks)
         self._rebuild_shuffle()
         if not tracks or start_index < 0 or start_index >= len(tracks):
@@ -108,8 +111,8 @@ class MainWindowController(Controller):
             return
         self._save_lyrics_offset_for_current()
         self._current_track = track
-        self.player_engine.load_single(track.path)
-        self.player_engine.play()
+        paths = [t.path or "" for t in tracks]
+        self.player_engine.load_playlist(paths, start_index)
         self._on_track_changed(track)
 
     def _rebuild_shuffle(self) -> None:
@@ -203,8 +206,23 @@ class MainWindowController(Controller):
         self._navigate(-1)
 
     def _sync_current_track(self) -> None:
-        """Called on end-of-track: advance to next."""
+        """Called on end-of-track: advance to next (non-VLC fallback)."""
+        if self._vlc_backend:
+            return  # VLC list player auto-advances; _on_vlc_media_changed handles UI
         self._navigate(1)
+
+    def _on_vlc_media_changed(self) -> None:
+        """VLC list player advanced — sync current track and UI."""
+        path = self.player_engine.current_media_path
+        if not path or not self._playback_queue:
+            self._current_track = None
+            return
+        track = next((t for t in self._playback_queue if t.path == path), None)
+        if track:
+            self._save_lyrics_offset_for_current()
+            self._current_track = track
+            self.player_engine.save_state()
+            self._on_track_changed(track)
 
     def seek(self, ms: int) -> None:
         self.player_engine.seek(ms)

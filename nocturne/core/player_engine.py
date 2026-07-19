@@ -41,9 +41,13 @@ class PlayerEngine:
         self._player.event_manager().event_attach(
             vlc.EventType.MediaPlayerEndReached, self._on_end_reached
         )
+        self._player.event_manager().event_attach(
+            vlc.EventType.MediaPlayerMediaChanged, self._on_media_changed
+        )
 
         # Callbacks
         self._on_track_change = None
+        self._on_media_change = None
 
         # PCM capture for FFT visualizer
         self._pcm = PCMCapture()
@@ -59,15 +63,15 @@ class PlayerEngine:
 
     def play(self) -> None:
         self._pcm.start()
-        self._player.play()
+        self._list_player.play()
 
     def pause(self) -> None:
         self._pcm.stop()
-        self._player.pause()
+        self._list_player.pause()
 
     def stop(self) -> None:
         self._pcm.stop()
-        self._player.stop()
+        self._list_player.stop()
 
     def toggle_play(self) -> None:
         if self._player.is_playing():
@@ -150,22 +154,30 @@ class PlayerEngine:
         self._list_player.play_item_at_index(start_index)
 
     def load_single(self, path: str) -> None:
-        """Load a single file directly (not via list player, which breaks next-track)."""
+        """Load a single file (for resume — no list/queue)."""
         from urllib.parse import quote
         mrl = "file://" + quote(str(path))
         media = self._instance.media_new(mrl)
         self._player.set_media(media)
-        media.release()
 
     def set_on_end(self, callback) -> None:
         """Register callback when track finishes playing.
         VLC list player auto-advances — callback just updates UI state."""
         self._on_end = callback
 
+    def set_on_media_change(self, callback) -> None:
+        """Register callback when VLC advances to next media in list."""
+        self._on_media_change = callback
+
     def _on_end_reached(self, event) -> None:
         """VLC end-of-track event — let list player advance, then sync UI."""
         if self._on_end:
             self._on_end()
+
+    def _on_media_changed(self, event) -> None:
+        """VLC media changed event — current media switched (next/prev in list)."""
+        if self._on_media_change:
+            self._on_media_change()
 
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 
