@@ -132,7 +132,7 @@ class PlayerBar(QWidget):
 
         # ── Layout ──────────────────────────────────────────────────────
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(24, 12, 24, 12)
+        layout.setContentsMargins(24, 8, 24, 8)
         layout.setSpacing(0)
 
         # ── Left: Now Playing ───────────────────────────────────────────
@@ -166,7 +166,7 @@ class PlayerBar(QWidget):
 
         # ── Center: Transport + Progress ────────────────────────────────
         center = QVBoxLayout()
-        center.setSpacing(4)
+        center.setSpacing(6)
 
         # Button row
         btn_row = QHBoxLayout()
