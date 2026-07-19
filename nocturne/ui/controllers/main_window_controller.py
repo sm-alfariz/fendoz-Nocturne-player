@@ -87,25 +87,31 @@ class MainWindowController(Controller):
     def current_track(self) -> Optional[Track]:
         return self._current_track
 
+    def _play(self, tracks: list[Track], start_index: int = 0) -> None:
+        """Load track into engine (single track) — queue stored for next/prev."""
+        self._playback_queue = list(tracks)
+        if not tracks or start_index < 0 or start_index >= len(tracks):
+            return
+        track = tracks[start_index]
+        if not track.path or not Path(track.path).exists():
+            return
+        self._save_lyrics_offset_for_current()
+        self._current_track = track
+        self.player_engine.load_single(track.path)
+        self._on_track_changed(track)
+
     def play_track(self, track: Track) -> None:
         if track.source_type == "local":
             if not track.path or not Path(track.path).exists():
                 return
-
-        self._save_lyrics_offset_for_current()
-        self._current_track = track
-        # Load all library tracks as playlist so next/prev work
+        # Load all library tracks as queue context
         conn = get_connection()
         rows = conn.execute(
             "SELECT * FROM tracks WHERE path IS NOT NULL ORDER BY title"
         ).fetchall()
         all_tracks = [Track.from_row(r) for r in rows]
-        paths = [t.path for t in all_tracks if t.path and Path(t.path).exists()]
-        start = 0
-        if track.path and track.path in paths:
-            start = paths.index(track.path)
-        self.player_engine.load_playlist(paths, start)
-        self._on_track_changed(track)
+        idx = next((i for i, t in enumerate(all_tracks) if t.id == track.id), 0)
+        self._play(all_tracks, idx)
 
     def play_artist_tracks(self, artist: str) -> None:
         conn = get_connection()
@@ -114,15 +120,7 @@ class MainWindowController(Controller):
             (artist,),
         ).fetchall()
         tracks = [Track.from_row(r) for r in rows]
-        if not tracks:
-            return
-        paths = [t.path for t in tracks if t.path and Path(t.path).exists()]
-        if not paths:
-            return
-        self.player_engine.load_playlist(paths, 0)
-        self.player_engine.play()
-        self._current_track = tracks[0]
-        self._on_track_changed(tracks[0])
+        self._play(tracks)
 
     def play_album_tracks(self, album_id: int) -> None:
         conn = get_connection()
@@ -131,47 +129,38 @@ class MainWindowController(Controller):
             (album_id,),
         ).fetchall()
         tracks = [Track.from_row(r) for r in rows]
-        if not tracks:
-            return
-        paths = [t.path for t in tracks if t.path and Path(t.path).exists()]
-        if not paths:
-            return
-        self.player_engine.load_playlist(paths, 0)
-        self.player_engine.play()
-        self._current_track = tracks[0]
-        self._on_track_changed(tracks[0])
+        self._play(tracks)
 
     def toggle_play(self) -> None:
         self.player_engine.toggle_play()
 
     def next_track(self) -> None:
-        self.player_engine.next()
-        self._sync_current_track()
+        q = self._playback_queue
+        if not q or not self._current_track:
+            return
+        idx = next((i for i, t in enumerate(q) if t.id == self._current_track.id), -1)
+        if idx < 0 or idx >= len(q) - 1:
+            return
+        self._play(q, idx + 1)
 
     def prev_track(self) -> None:
-        self.player_engine.previous()
-        self._sync_current_track()
+        q = self._playback_queue
+        if not q or not self._current_track:
+            return
+        idx = next((i for i, t in enumerate(q) if t.id == self._current_track.id), -1)
+        if idx <= 0:
+            return
+        self._play(q, idx - 1)
 
     def _sync_current_track(self) -> None:
-        """Query the engine for its current media and emit track_changed."""
-        path = self.player_engine.current_media_path
-        if not path:
+        """Called on end-of-track: advance queue and play next."""
+        q = self._playback_queue
+        if not q or not self._current_track:
             return
-        conn = get_connection()
-        row = conn.execute(
-            "SELECT * FROM tracks WHERE path = ?", (path,)
-        ).fetchone()
-        if row:
-            track = Track.from_row(row)
-            self._current_track = track
-            self._on_track_changed(track)
-        elif path:
-            # media from outside library — still emit
-            import ntpath
-            title = ntpath.splitext(ntpath.basename(path))[0]
-            track = Track(path=path, title=title)
-            self._current_track = track
-            self._on_track_changed(track)
+        idx = next((i for i, t in enumerate(q) if t.id == self._current_track.id), -1)
+        if idx < 0 or idx >= len(q) - 1:
+            return
+        self._play(q, idx + 1)
 
     def seek(self, ms: int) -> None:
         self.player_engine.seek(ms)
