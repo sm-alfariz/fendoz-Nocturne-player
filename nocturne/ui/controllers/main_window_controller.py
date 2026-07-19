@@ -58,7 +58,10 @@ class MainWindowController(Controller):
             self.equalizer = Equalizer(self.player_engine._instance)
             self.equalizer.apply_preset("Flat")
             self.equalizer.attach_to_player(self.player_engine._player)
-            self.player_engine.set_on_end(self._sync_current_track)
+            # Dispatch to main thread — VLC fires end-of-track on libvlc event thread
+            self.player_engine.set_on_end(
+                lambda: QTimer.singleShot(0, self._sync_current_track)
+            )
         else:
             self.player_engine = QtPlayerEngine()
             self.equalizer = Equalizer()  # no-op mode
