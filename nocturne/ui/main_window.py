@@ -20,8 +20,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPushButton,
     QStackedWidget,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -35,6 +37,7 @@ from qfluentwidgets import (
 from nocturne.config.config import ROOT
 from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.components.lyrics_panel import LyricsPanel
+from nocturne.ui.components.miniplayer import MiniPlayer
 from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
 from nocturne.ui.components.scan_progress_overlay import ScanProgressOverlay
 from nocturne.ui.views.blank_widget import BlankWidget
@@ -319,6 +322,16 @@ class MainWindow(QWidget):
         # ── Audio worker → visualizer + spectrum ──────────────────────
         self.ctrl.audio_worker.spectrum_ready.connect(self._pages["home"].set_spectrum)
 
+        # ── Miniplayer ─────────────────────────────────────────────────
+        self.mini_player = MiniPlayer(self.ctrl.player_engine, None)
+        self.mini_player.play_toggled.connect(self.player_bar._toggle_play)
+        self.mini_player.next_requested.connect(self.ctrl.next_track)
+        self.mini_player.prev_requested.connect(self.ctrl.prev_track)
+        self.mini_player.closed.connect(self._restore_from_miniplayer)
+
+        # ── System tray ────────────────────────────────────────────────
+        self._setup_tray()
+
         # ── Resume playback on startup ────────────────────────────────
         QTimer.singleShot(0, self.ctrl.resume_playback)
 
@@ -562,8 +575,10 @@ class MainWindow(QWidget):
         if pix:
             self.stage.ring.set_artwork(pix)
             self.player_bar.update_track_info(track.title, track.artist or "", pix)
+            self.mini_player.update_track_info(track.title, track.artist or "", pix)
         else:
             self.stage.ring.set_artwork(None)
+            self.mini_player.update_track_info(track.title, track.artist or "")
 
 
         eq_name = "Flat"
@@ -658,13 +673,103 @@ class MainWindow(QWidget):
         self.ctrl.add_music_folder(folder)
 
     def closeEvent(self, event) -> None:
-        """Clean shutdown — stop threads, save state, release engine."""
+        """Override close — hide to tray instead of quitting."""
+        from nocturne.config.config import cfg
+        if cfg.closeToTray.value and self.tray_icon and self.tray_icon.isVisible():
+            event.ignore()
+            self.hide()
+            self.tray_icon.show()
+            self.tray_icon.showMessage(
+                "Nocturne", "App minimized to tray", QSystemTrayIcon.Information, 2000
+            )
+        else:
+            self.ctrl.audio_worker.stop()
+            self.ctrl.player_engine.save_state()
+            self.ctrl.player_engine.stop()
+            self.ctrl.player_engine.cleanup()
+            self._lyrics_timer.stop()
+            self.mini_player._timer.stop()
+            event.accept()
+
+    def _setup_tray(self) -> None:
+        icon_path = os.path.join(
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")),
+            "resource", "img", "icon.png",
+        )
+        self.tray_icon = QSystemTrayIcon(QIcon(icon_path), self)
+        self.tray_icon.setToolTip("Nocturne")
+
+        menu = QMenu()
+
+        self._tray_show_player = menu.addAction("Show Player")
+        self._tray_show_player.triggered.connect(self._show_from_tray)
+
+        self._tray_show_miniplayer = menu.addAction("Show Miniplayer")
+        self._tray_show_miniplayer.triggered.connect(self._show_miniplayer)
+
+        menu.addSeparator()
+
+        self._tray_next = menu.addAction("Next Track")
+        self._tray_next.triggered.connect(self.ctrl.next_track)
+
+        self._tray_prev = menu.addAction("Previous Track")
+        self._tray_prev.triggered.connect(self.ctrl.prev_track)
+
+        self._tray_play = menu.addAction("Pause")
+        self._tray_play.triggered.connect(self._tray_toggle_play)
+
+        menu.addSeparator()
+
+        exit_action = menu.addAction("Exit App")
+        exit_action.triggered.connect(self._quit_app)
+
+        self.tray_icon.setContextMenu(menu)
+        self.tray_icon.activated.connect(self._on_tray_activated)
+
+    def _on_tray_activated(self, reason) -> None:
+        if reason == QSystemTrayIcon.DoubleClick:
+            self._show_from_tray()
+
+    def _show_from_tray(self) -> None:
+        if self.mini_player and self.mini_player.isVisible():
+            self.mini_player.hide()
+        self.showNormal()
+        self.activateWindow()
+        self.tray_icon.hide()
+
+    def _show_miniplayer(self) -> None:
+        if not self.mini_player:
+            return
+        self.hide()
+        # Center on screen
+        screen = QApplication.primaryScreen()
+        if screen:
+            geo = screen.availableGeometry()
+            x = geo.center().x() - self.mini_player.width() // 2
+            y = geo.bottom() - self.mini_player.height() - 60
+            self.mini_player.move(x, y)
+        self.mini_player.show()
+
+    def _restore_from_miniplayer(self) -> None:
+        self._show_from_tray()
+
+    def _tray_toggle_play(self) -> None:
+        if self.ctrl.player_engine.is_playing:
+            self.ctrl.player_engine.pause()
+            self._tray_play.setText("Play")
+        else:
+            self.ctrl.player_engine.play()
+            self._tray_play.setText("Pause")
+
+    def _quit_app(self) -> None:
+        self.tray_icon.hide()
+        self.mini_player._timer.stop()
         self.ctrl.audio_worker.stop()
         self.ctrl.player_engine.save_state()
         self.ctrl.player_engine.stop()
         self.ctrl.player_engine.cleanup()
         self._lyrics_timer.stop()
-        event.accept()
+        QApplication.quit()
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)

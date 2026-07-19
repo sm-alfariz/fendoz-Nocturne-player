@@ -97,6 +97,7 @@ class Config(QConfig):
     # Custom settings
     autoSaveNote = ConfigItem("Custom", "AutoSaveNote", False, BoolValidator())
     confirmExit = ConfigItem("Custom", "ConfirmExit", False, BoolValidator())
+    closeToTray = ConfigItem("Custom", "CloseToTray", True, BoolValidator())
 
     # Accessibility
     reduceMotion = ConfigItem("Accessibility", "ReduceMotion", False, BoolValidator())
