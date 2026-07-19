@@ -36,6 +36,12 @@ class PlayerEngine:
         self._list_player.set_media_player(self._player)
         self._list_player.set_media_list(self._list)
 
+        # End-of-track → auto-advance
+        self._on_end = None
+        self._player.event_manager().event_attach(
+            vlc.EventType.MediaPlayerEndReached, self._on_end_reached
+        )
+
         # Callbacks
         self._on_track_change = None
 
@@ -146,6 +152,16 @@ class PlayerEngine:
     def load_single(self, path: str) -> None:
         """Load and play a single file via list player (so play/pause/stop route correctly)."""
         self.load_playlist([path], start_index=0)
+
+    def set_on_end(self, callback) -> None:
+        """Register callback when track finishes playing.
+        VLC list player auto-advances — callback just updates UI state."""
+        self._on_end = callback
+
+    def _on_end_reached(self, event) -> None:
+        """VLC end-of-track event — let list player advance, then sync UI."""
+        if self._on_end:
+            self._on_end()
 
     # ── PCM / FFT bridge ──────────────────────────────────────────────
 

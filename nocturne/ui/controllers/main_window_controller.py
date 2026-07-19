@@ -53,9 +53,11 @@ class MainWindowController(Controller):
             self.equalizer = Equalizer(self.player_engine._instance)
             self.equalizer.apply_preset("Flat")
             self.equalizer.attach_to_player(self.player_engine._player)
+            self.player_engine.set_on_end(self._sync_current_track)
         else:
             self.player_engine = QtPlayerEngine()
             self.equalizer = Equalizer()  # no-op mode
+            self.player_engine.set_on_end(self.next_track)
 
         self.audio_worker = AudioWorker(
             pcm_source=self.player_engine.pcm_data, parent=self
@@ -134,9 +136,32 @@ class MainWindowController(Controller):
 
     def next_track(self) -> None:
         self.player_engine.next()
+        self._sync_current_track()
 
     def prev_track(self) -> None:
         self.player_engine.previous()
+        self._sync_current_track()
+
+    def _sync_current_track(self) -> None:
+        """Query the engine for its current media and emit track_changed."""
+        path = self.player_engine.current_media_path
+        if not path:
+            return
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT * FROM tracks WHERE path = ?", (path,)
+        ).fetchone()
+        if row:
+            track = Track.from_row(row)
+            self._current_track = track
+            self._on_track_changed(track)
+        elif path:
+            # media from outside library — still emit
+            import ntpath
+            title = ntpath.splitext(ntpath.basename(path))[0]
+            track = Track(path=path, title=title)
+            self._current_track = track
+            self._on_track_changed(track)
 
     def seek(self, ms: int) -> None:
         self.player_engine.seek(ms)

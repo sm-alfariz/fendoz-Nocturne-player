@@ -38,6 +38,16 @@ class QtPlayerEngine:
         self._shuffle = False
         self._original_indices: list[int] = []
         self._shuffled_indices: list[int] = []
+        self._on_end = None
+
+        self._media_player.mediaStatusChanged.connect(self._on_media_status)
+
+    def set_on_end(self, callback) -> None:
+        self._on_end = callback
+
+    def _on_media_status(self, status) -> None:
+        if status == QMediaPlayer.EndOfMedia and self._on_end:
+            self._on_end()
 
     # ── Playback control ──────────────────────────────────────────────
 

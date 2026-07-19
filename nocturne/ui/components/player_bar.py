@@ -286,8 +286,9 @@ class PlayerBar(QWidget):
 
 
 class _NavButton(MediaPlayBarButton):
-    """Slightly larger nav button for prev/next."""
+    """Nav button for prev/next."""
 
     def __init__(self, icon, parent=None) -> None:
         super().__init__(parent)
         self.setIcon(icon)
+        self.setFixedSize(36, 36)
