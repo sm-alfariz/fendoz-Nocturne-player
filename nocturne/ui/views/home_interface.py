@@ -113,8 +113,9 @@ class BannerWidget(QWidget):
 
         self.spectrum = SpectrumBar(self)
         self.spectrum.setFixedHeight(96)
+        self.spectrum.setMinimumWidth(400)
         self.vBoxLayout.addSpacing(20)
-        self.vBoxLayout.addWidget(self.spectrum, 0, Qt.AlignCenter)
+        self.vBoxLayout.addWidget(self.spectrum)
         self.vBoxLayout.addStretch()
 
     def set_track_info(self, title: str, artist: str = "") -> None:
