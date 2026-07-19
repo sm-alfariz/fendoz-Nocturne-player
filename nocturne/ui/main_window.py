@@ -331,6 +331,9 @@ class MainWindow(QWidget):
 
         # ── System tray ────────────────────────────────────────────────
         self._setup_tray()
+        from nocturne.config.config import cfg
+        if cfg.closeToTray.value:
+            self.tray_icon.show()
 
         # ── Resume playback on startup ────────────────────────────────
         QTimer.singleShot(0, self.ctrl.resume_playback)
