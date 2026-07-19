@@ -214,6 +214,13 @@ class SettingInterface(ScrollArea):
             cfg.confirmExit,
             self.personalGroup,
         )
+        self.closeToTraySetting = SwitchSettingCard(
+            FIF.CLOSE,
+            self.tr("Close to tray"),
+            self.tr("Minimize to system tray instead of quitting when closing the window"),
+            cfg.closeToTray,
+            self.personalGroup,
+        )
 
         self.crashLogCard = PushSettingCard(
             self.tr("Open Log Folder"),
@@ -253,6 +260,7 @@ class SettingInterface(ScrollArea):
         self.personalGroup.addSettingCard(self.languageCard)
         self.personalGroup.addSettingCard(self.autoSaveSetting)
         self.personalGroup.addSettingCard(self.confirmExitSetting)
+        self.personalGroup.addSettingCard(self.closeToTraySetting)
         self.materialGroup.addSettingCard(self.blurRadiusCard)
         self.libraryGroup.addSettingCard(self.folderCard)
         self.libraryGroup.addSettingCard(self.scanCard)

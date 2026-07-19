@@ -34,7 +34,7 @@ from qfluentwidgets import (
     NavigationAvatarWidget,
 )
 
-from nocturne.config.config import ROOT
+from nocturne.config.config import ROOT, cfg
 from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.components.lyrics_panel import LyricsPanel
 from nocturne.ui.components.miniplayer import MiniPlayer
@@ -331,7 +331,6 @@ class MainWindow(QWidget):
 
         # ── System tray ────────────────────────────────────────────────
         self._setup_tray()
-        from nocturne.config.config import cfg
         if cfg.closeToTray.value:
             self.tray_icon.show()
 
@@ -684,10 +683,11 @@ class MainWindow(QWidget):
 
     def closeEvent(self, event) -> None:
         """Override close — hide to tray instead of quitting."""
-        from nocturne.config.config import cfg
-        if cfg.closeToTray.value and self.tray_icon and self.tray_icon.isVisible():
-            event.ignore()
+        if cfg.closeToTray.value and self.tray_icon:
+            event.accept()
             self.hide()
+            if self.mini_player and self.mini_player.isVisible():
+                self.mini_player.hide()
             self.tray_icon.show()
             self.tray_icon.showMessage(
                 "Nocturne", "App minimized to tray", QSystemTrayIcon.Information, 2000
