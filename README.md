@@ -43,6 +43,9 @@ Nocturne adalah aplikasi pemutar musik desktop premium dengan pendekatan **offli
 - **Dark navy theme** — 3-column layout (sidebar | stage | lyrics)
 - **PySide6 + QFluentWidgets** — komponen modern
 - **Reduce motion** — aksesibilitas
+- **System tray** — minimize to tray, notifikasi tetap jalan
+- **Miniplayer** — window kecil always-on-top dengan kontrol pemutaran
+- **Custom player bar** — progress bar gradient, tombol transport, time labels
 
 ## Instalasi
 

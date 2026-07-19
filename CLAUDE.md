@@ -51,9 +51,11 @@ nocturne/
 ├── ui/
 │   ├── main_window.py     # 3-column layout: TopBar | Sidebar+Stage | Lyrics
 │   ├── components/
-│   │   ├── player_bar.py      # Bottom dock: transport, volume, progress, repeat/shuffle
+│   │   ├── player_bar.py      # Bottom dock: custom widget with gradient progress, transport, time labels
+│   │   ├── miniplayer.py      # Frameless always-on-top miniplayer with artwork + transport
 │   │   ├── ring_visualizer.py # QPainter ring around album art + SpectrumBar
 │   │   ├── lyrics_panel.py    # Right-side karaoke typing effect via QTextEdit HTML, Enhanced LRC word-level highlight
+│   │   ├── scan_progress_overlay.py  # Semi-transparent overlay with ProgressBar during scan
 │   │   └── soundcloud_dialog.py# URL input dialog for online source
 │   └── views/             # One file per sidebar nav item
 │       ├── songs_view.py      # QSortFilterProxyModel + TableView, double-click → play
@@ -65,7 +67,7 @@ nocturne/
 ├── config/
 │   └── config.py         # QConfig singleton (cfg) — theme, DPI, language, online toggles
 ├── common/
-│   └── signal_bus.py     # Singleton SignalBus: folder_added, scan_started, play_toggled
+│   └── signal_bus.py     # Singleton SignalBus: folder_added, scan_started, play_toggled, playlist_changed
 └── integrations/
     └── soundcloud/        # Isolated module for online streaming (Fase 2, not wired yet)
 ```
@@ -101,3 +103,4 @@ Full requirements spec in 14 markdown files. Key IDs: FR-1.x (playback), FR-2.x 
 - FR-4.1: PCM capture via PulseAudio monitor (Linux only) — ALSA, Windows, macOS not implemented
 - FR-6.x: SoundCloud integration not wired (Fase 2)
 - FR-5.2: Online lyrics lookup not implemented (Fase 2)
+- Tray: Wayland support depends on compositor — may need `qt6-wayland` or fallback to no-tray mode
