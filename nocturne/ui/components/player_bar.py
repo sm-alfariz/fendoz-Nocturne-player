@@ -374,3 +374,9 @@ class PlayerBar(QWidget):
 
         self.time_label.setText(_fmt_ms(pos))
         self.duration_label.setText(_fmt_ms(dur))
+
+        # Sync play state button with engine
+        playing = self._engine.is_playing
+        if playing != self._is_playing:
+            self._is_playing = playing
+            self.play_btn.setText("⏸" if playing else "▶")

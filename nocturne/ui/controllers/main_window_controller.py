@@ -109,6 +109,7 @@ class MainWindowController(Controller):
         self._save_lyrics_offset_for_current()
         self._current_track = track
         self.player_engine.load_single(track.path)
+        self.player_engine.play()
         self._on_track_changed(track)
 
     def _rebuild_shuffle(self) -> None:
