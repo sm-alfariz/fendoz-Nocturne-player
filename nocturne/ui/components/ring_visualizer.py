@@ -159,9 +159,9 @@ class SpectrumBar(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._spectrum: np.ndarray = np.zeros(64)
-        self._smooth: np.ndarray = np.zeros(64)
-        self._peak: np.ndarray = np.zeros(64)
+        self._spectrum: np.ndarray = np.zeros(50)
+        self._smooth: np.ndarray = np.zeros(50)
+        self._peak: np.ndarray = np.zeros(50)
         self._has_signal = False
         self._phase = 0.0
         self._timer = QTimer(self)
@@ -172,6 +172,11 @@ class SpectrumBar(QWidget):
     def set_spectrum(self, data: np.ndarray) -> None:
         self._spectrum = data
         self._has_signal = bool(np.any(data > 0.01))
+        # Downsample if AudioWorker sends more bands than we display
+        if len(data) > len(self._smooth):
+            step = len(data) / len(self._smooth)
+            idx = np.floor(np.arange(len(self._smooth)) * step).astype(int)
+            self._spectrum = np.array([data[i] for i in idx], dtype=data.dtype)
 
     def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)
