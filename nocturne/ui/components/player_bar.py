@@ -139,6 +139,7 @@ class PlayerBar(QWidget):
     next_requested = Signal()
     prev_requested = Signal()
     seek_requested = Signal(int)
+    shuffle_toggled = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -262,9 +263,7 @@ class PlayerBar(QWidget):
     # ── Internals ─────────────────────────────────────────────────────
 
     def _on_shuffle(self) -> None:
-        if self._adapter:
-            enabled = self._adapter._engine.toggle_shuffle()
-            self.shuffle_btn.setChecked(enabled)
+        self.shuffle_toggled.emit()
 
     def _on_repeat(self) -> None:
         if self._adapter:

@@ -65,6 +65,9 @@ class MainWindowController(Controller):
 
         self._current_track: Optional[Track] = None
         self._music_folders: list[Path] = []
+        self._playback_queue: list[Track] = []
+        self._shuffled = False
+        self._shuffle_order: list[int] = []
 
         # ── Sub-controllers ───────────────────────────────────────────
         self.home = HomeController(self)
@@ -88,8 +91,9 @@ class MainWindowController(Controller):
         return self._current_track
 
     def _play(self, tracks: list[Track], start_index: int = 0) -> None:
-        """Load track into engine (single track) — queue stored for next/prev."""
+        """Load track into engine — queue stored for next/prev."""
         self._playback_queue = list(tracks)
+        self._rebuild_shuffle()
         if not tracks or start_index < 0 or start_index >= len(tracks):
             return
         track = tracks[start_index]
@@ -99,6 +103,35 @@ class MainWindowController(Controller):
         self._current_track = track
         self.player_engine.load_single(track.path)
         self._on_track_changed(track)
+
+    def _rebuild_shuffle(self) -> None:
+        import random
+        n = len(self._playback_queue)
+        self._shuffle_order = list(range(n))
+        random.shuffle(self._shuffle_order)
+
+    def _queue_index(self) -> int:
+        if not self._playback_queue or not self._current_track:
+            return -1
+        return next(
+            (i for i, t in enumerate(self._playback_queue) if t.id == self._current_track.id),
+            -1,
+        )
+
+    def toggle_shuffle(self) -> bool:
+        self._shuffled = not self._shuffled
+        if self._shuffled:
+            self._rebuild_shuffle()
+            # Re-order current position to front of shuffle list
+            cur = self._queue_index()
+            if cur >= 0 and cur in self._shuffle_order:
+                self._shuffle_order.remove(cur)
+                self._shuffle_order.insert(0, cur)
+        return self._shuffled
+
+    @property
+    def is_shuffled(self) -> bool:
+        return self._shuffled
 
     def play_track(self, track: Track) -> None:
         if track.source_type == "local":
@@ -134,33 +167,36 @@ class MainWindowController(Controller):
     def toggle_play(self) -> None:
         self.player_engine.toggle_play()
 
-    def next_track(self) -> None:
+    def _navigate(self, delta: int) -> None:
         q = self._playback_queue
         if not q or not self._current_track:
             return
-        idx = next((i for i, t in enumerate(q) if t.id == self._current_track.id), -1)
-        if idx < 0 or idx >= len(q) - 1:
+        cur = self._queue_index()
+        if cur < 0:
             return
-        self._play(q, idx + 1)
+        if self._shuffled:
+            idx = self._shuffle_order.index(cur) if cur in self._shuffle_order else -1
+            if idx < 0:
+                return
+            nidx = idx + delta
+            if nidx < 0 or nidx >= len(self._shuffle_order):
+                return
+            self._play(q, self._shuffle_order[nidx])
+        else:
+            nidx = cur + delta
+            if nidx < 0 or nidx >= len(q):
+                return
+            self._play(q, nidx)
+
+    def next_track(self) -> None:
+        self._navigate(1)
 
     def prev_track(self) -> None:
-        q = self._playback_queue
-        if not q or not self._current_track:
-            return
-        idx = next((i for i, t in enumerate(q) if t.id == self._current_track.id), -1)
-        if idx <= 0:
-            return
-        self._play(q, idx - 1)
+        self._navigate(-1)
 
     def _sync_current_track(self) -> None:
-        """Called on end-of-track: advance queue and play next."""
-        q = self._playback_queue
-        if not q or not self._current_track:
-            return
-        idx = next((i for i, t in enumerate(q) if t.id == self._current_track.id), -1)
-        if idx < 0 or idx >= len(q) - 1:
-            return
-        self._play(q, idx + 1)
+        """Called on end-of-track: advance to next."""
+        self._navigate(1)
 
     def seek(self, ms: int) -> None:
         self.player_engine.seek(ms)

@@ -267,6 +267,7 @@ class MainWindow(QWidget):
         signalBus.play_toggled.connect(self._on_play_toggled)
         self.player_bar.next_requested.connect(self.ctrl.next_track)
         self.player_bar.prev_requested.connect(self.ctrl.prev_track)
+        self.player_bar.shuffle_toggled.connect(self._on_shuffle)
 
         self.lyrics_panel = LyricsPanel(self)
         self.stage = StageWidget(self)
@@ -559,6 +560,10 @@ class MainWindow(QWidget):
             playlist_view.load()
 
     # ── Playback lifecycle ────────────────────────────────────────────
+
+    def _on_shuffle(self) -> None:
+        enabled = self.ctrl.toggle_shuffle()
+        self.player_bar.shuffle_btn.setChecked(enabled)
 
     def _on_play_toggled(self, playing: bool) -> None:
         self.player_bar.set_playing(playing)
