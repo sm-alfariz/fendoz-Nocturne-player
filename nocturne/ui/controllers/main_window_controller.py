@@ -94,7 +94,17 @@ class MainWindowController(Controller):
 
         self._save_lyrics_offset_for_current()
         self._current_track = track
-        self.player_engine.load_single(track.path)
+        # Load all library tracks as playlist so next/prev work
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT * FROM tracks WHERE path IS NOT NULL ORDER BY title"
+        ).fetchall()
+        all_tracks = [Track.from_row(r) for r in rows]
+        paths = [t.path for t in all_tracks if t.path and Path(t.path).exists()]
+        start = 0
+        if track.path and track.path in paths:
+            start = paths.index(track.path)
+        self.player_engine.load_playlist(paths, start)
         self._on_track_changed(track)
 
     def play_artist_tracks(self, artist: str) -> None:
