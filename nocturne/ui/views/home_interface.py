@@ -13,7 +13,7 @@ import numpy as np
 
 from nocturne.common.style_sheet import StyleSheet
 from nocturne.data.models import Track
-from nocturne.ui.components.ring_visualizer import RingVisualizer
+from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
 from qfluentwidgets import ScrollArea
 
 from nocturne.ui.theme.tokens import Color
@@ -84,7 +84,7 @@ class BannerWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.setFixedHeight(520)
+        self.setFixedHeight(640)
 
         self.vBoxLayout = QVBoxLayout(self)
         self.vBoxLayout.setContentsMargins(24, 12, 24, 18)
@@ -110,6 +110,11 @@ class BannerWidget(QWidget):
         self.visualizer.setFixedSize(360, 360)
         self.visualizer.setVisible(False)
         self.vBoxLayout.addWidget(self.visualizer, 0, Qt.AlignCenter)
+
+        self.spectrum = SpectrumBar(self)
+        self.spectrum.setFixedHeight(96)
+        self.vBoxLayout.addSpacing(20)
+        self.vBoxLayout.addWidget(self.spectrum, 0, Qt.AlignCenter)
         self.vBoxLayout.addStretch()
 
     def set_track_info(self, title: str, artist: str = "") -> None:
@@ -124,6 +129,7 @@ class BannerWidget(QWidget):
 
     def set_spectrum(self, data: np.ndarray) -> None:
         self.visualizer.set_spectrum(data)
+        self.spectrum.set_spectrum(data)
 
     def set_playing(self, playing: bool) -> None:
         self.visualizer.setVisible(playing)

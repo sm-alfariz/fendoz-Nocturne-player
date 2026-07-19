@@ -306,8 +306,6 @@ class MainWindow(QWidget):
         self.ctrl.volume_restored.connect(self.player_bar.set_volume)
 
         # ── Audio worker → visualizer + spectrum ──────────────────────
-        self.ctrl.audio_worker.spectrum_ready.connect(self.stage.ring.set_spectrum)
-        self.ctrl.audio_worker.spectrum_ready.connect(self.stage.spectrum.set_spectrum)
         self.ctrl.audio_worker.spectrum_ready.connect(self._pages["home"].set_spectrum)
 
         # ── Resume playback on startup ────────────────────────────────
