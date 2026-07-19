@@ -3,8 +3,8 @@
 ring_visualizer.py — Custom QWidget rendering FFT spectrum as a ring around
 album art, drawn with QPainter at ~30 fps.  (FR-4.1–4.3)
 
-Matches mockup: circular album art with glow shadow, ring segments around it,
-horizontal spectrum bar below track info.
+Matches mockup-nocturne.html: circular album art with glow shadow, ring segments
+around it, and horizontal spectrum bar with gradient below track info.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from nocturne.ui.theme.tokens import Color
 
 
 class RingVisualizer(QWidget):
-    """Animated ring visualizer around album art + horizontal spectrum bar."""
+    """Animated ring visualizer around album art matching mockup style."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -39,7 +39,6 @@ class RingVisualizer(QWidget):
         self._artwork: Optional[QPixmap] = None
         self._reduce_motion = False
         self._frame = 0
-        self._segments = 90
 
         # 30 fps timer
         self._timer = QTimer(self)
@@ -69,60 +68,35 @@ class RingVisualizer(QWidget):
         w, h = self.width(), self.height()
         cx, cy = w // 2, h // 2
 
-        # Soft outer glow to emulate the PRD mockup's glassy dark atmosphere.
-        glow = QRadialGradient(cx, cy, 110)
-        glow.setColorAt(0, QColor(30, 136, 229, 44))
-        glow.setColorAt(0.55, QColor(79, 195, 247, 12))
-        glow.setColorAt(1, QColor(10, 15, 30, 0))
-        painter.setBrush(glow)
-        painter.setPen(Qt.NoPen)
-        painter.drawEllipse(QRectF(cx - 128, cy - 128, 256, 256))
-
         # ── Ring segments around album art ────────────────────────────
-        inner_radius = 108
-        outer_radius = 130
-        segments = self._segments
+        base_r = 108  # ring starts just outside album art edge
+        segments = 90
         has_signal = bool(np.any(self._spectrum > 0.01))
-        t_ring = self._frame * 0.045
-        pen = QPen()
-        pen.setWidthF(2.4)
 
         for i in range(segments):
-            angle = math.radians(i / segments * 360 - 90 + math.sin(t_ring + i * 0.22) * 8)
+            angle = (i / segments) * math.pi * 2 + math.pi * 2 * self._frame * 0.045
+
             if has_signal:
                 idx = int(i / segments * len(self._spectrum))
                 magnitude = max(0.0, min(1.0, abs(float(self._spectrum[idx]))))
-                pulse = 0.78 + 0.22 * math.sin(t_ring * 2.1 + i * 0.16)
-                bar_len = 6 + magnitude * 18 * pulse
+                n = magnitude
             else:
-                n = math.sin(t_ring + i * 0.28) * 0.5 + math.sin(t_ring * 1.7 + i * 0.12) * 0.3
-                bar_len = 6 + abs(n) * 16
+                n = math.sin(self._frame * 0.045 + i * 0.28) * 0.5 + math.sin(self._frame * 0.045 * 1.7 + i * 0.12) * 0.3
 
-            x1 = cx + inner_radius * math.cos(angle)
-            y1 = cy + inner_radius * math.sin(angle)
-            x2 = cx + (inner_radius + bar_len) * math.cos(angle)
-            y2 = cy + (inner_radius + bar_len) * math.sin(angle)
+            length = 6 + abs(n) * 16
+            x1 = cx + math.cos(angle) * base_r
+            y1 = cy + math.sin(angle) * base_r
+            x2 = cx + math.cos(angle) * (base_r + length)
+            y2 = cy + math.sin(angle) * (base_r + length)
 
-            if i % 11 == 0:
-                pen.setColor(QColor(Color.ACCENT_SECONDARY))
-                pen.setWidthF(2.8)
-            else:
-                if has_signal:
-                    alpha = int(60 + magnitude * 165)
-                else:
-                    alpha = 90 + int(abs(n) * 120)
-                pen.setColor(QColor(79, 195, 247, min(alpha, 255)))
-                pen.setWidthF(2.4)
-
-            painter.setPen(pen)
+            painter.setPen(QPen(
+                QColor(Color.ACCENT_SECONDARY) if i % 11 == 0 else QColor(79, 195, 247, int((0.35 + abs(n) * 0.5) * 255)),
+                2.4,
+            ))
             painter.drawLine(int(x1), int(y1), int(x2), int(y2))
 
-        outer_ring = QPen(QColor(79, 195, 247, 72), 1.3)
-        painter.setPen(outer_ring)
-        painter.drawEllipse(QRectF(cx - outer_radius, cy - outer_radius, outer_radius * 2, outer_radius * 2))
-
         # ── Album art (circular with glow shadow) ─────────────────────
-        art_size = 188
+        art_size = 186
         art_rect = QRectF(cx - art_size // 2, cy - art_size // 2, art_size, art_size)
 
         # Outer drop-shadow glow (mockup: 0 20px 50px -12px rgba(30,136,229,0.45))
@@ -133,7 +107,7 @@ class RingVisualizer(QWidget):
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(QRectF(cx - art_size * 0.5, cy - art_size * 0.3, art_size, art_size * 0.8))
 
-        # Border ring
+        # Border ring (mockup: box-shadow 0 0 0 1px var(--border))
         border_pen = QPen(QColor(79, 195, 247, 36), 1)
         painter.setPen(border_pen)
         painter.setBrush(QBrush(QColor("#101B33")))
@@ -154,7 +128,13 @@ class RingVisualizer(QWidget):
             painter.drawPixmap(int(art_rect.x()), int(art_rect.y()), pix)
             painter.setClipPath(clip_path)
             painter.restore()
+
+            # Center dot (mockup: ::before pseudo-element)
+            painter.setBrush(QBrush(QColor(Color.BACKGROUND_DEEP)))
+            painter.setPen(QPen(QColor(79, 195, 247, 36), 1))
+            painter.drawEllipse(QRectF(cx - 28, cy - 28, 56, 56))
         else:
+            # Gradient fallback when no artwork
             grad = QConicalGradient(cx, cy, 0)
             grad.setColorAt(0, QColor("#2E4A7D"))
             grad.setColorAt(1, QColor("#101B33"))
@@ -163,14 +143,15 @@ class RingVisualizer(QWidget):
             painter.drawEllipse(art_rect)
 
             painter.setBrush(QBrush(QColor(Color.BACKGROUND_DEEP)))
-            painter.drawEllipse(QRectF(cx - 26, cy - 26, 52, 52))
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QRectF(cx - 28, cy - 28, 56, 56))
 
         painter.end()
         self._frame += 1
 
 
 class SpectrumBar(QWidget):
-    """Horizontal spectrum visualizer bar (below track info in mockup)."""
+    """Horizontal spectrum visualizer bar (mockup: 64 bars with gradient)."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -199,10 +180,6 @@ class SpectrumBar(QWidget):
         painter.setPen(Qt.NoPen)
         spacing = 3
         bar_w = max(2, (w - (n - 1) * spacing) / n)
-        gradient = QLinearGradient(0, h, 0, 0)
-        gradient.setColorAt(0, QColor(Color.PRIMARY))
-        gradient.setColorAt(0.7, QColor(Color.ACCENT))
-        gradient.setColorAt(1, QColor(79, 195, 247, 70))
 
         for i in range(n):
             if self._has_signal:
@@ -212,16 +189,23 @@ class SpectrumBar(QWidget):
                 import random as _random
                 noise = _random.random() * 0.35
                 mag = min(1.0, base * 0.7 + noise)
-            bh = max(8, mag * h * 0.94)
+
+            bh = max(4, mag * h * 0.94)
             x = i * (bar_w + spacing)
+
+            # Gradient (mockup: accent → primary 65% → rgba(30,136,229,0.25))
+            gradient = QLinearGradient(0, h, 0, 0)
+            gradient.setColorAt(0, QColor(Color.PRIMARY))
+            gradient.setColorAt(0.65, QColor(Color.ACCENT))
+            gradient.setColorAt(1, QColor(30, 136, 229, 64))
             painter.setBrush(QBrush(gradient))
+
+            opacity = 0.55 + (bh / h) * 0.45
+            painter.setOpacity(opacity)
             painter.drawRoundedRect(
                 int(x), int(h - bh), int(bar_w), int(bh), 4, 4
             )
-            painter.setBrush(QColor(30, 136, 229, 40))
-            painter.drawRect(
-                int(x), int(h - 2), int(bar_w), 2
-            )
 
+        painter.setOpacity(1.0)
         self._phase += 0.09
         painter.end()
