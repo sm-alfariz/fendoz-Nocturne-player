@@ -144,6 +144,21 @@ class PCMCapture:
                 self._buffer.extend(samples.tolist())
             time.sleep(0.032)
 
+    def read_fft(self, n: int = 1024) -> np.ndarray:
+        """Return and consume PCM samples for FFT processing."""
+        with self._lock:
+            if not self._buffer:
+                return _build_fallback_window(n)
+            count = min(len(self._buffer), n)
+            samples = np.asarray([self._buffer.popleft() for _ in range(count)], dtype=np.float64)
+        samples = np.nan_to_num(samples, nan=0.0, posinf=0.0, neginf=0.0)
+        if len(samples) < n:
+            samples = np.pad(samples, (0, n - len(samples)))
+        mx = float(np.max(np.abs(samples))) or 1.0
+        if mx > 0:
+            samples = np.clip(samples / mx, -1.0, 1.0)
+        return samples.astype(np.float64)
+
 
 def _synthetic_frame(t: int) -> np.ndarray:
     """Generate one frame of synthetic PCM data with varying spectrum."""
@@ -168,27 +183,7 @@ def _synthetic_frame(t: int) -> np.ndarray:
     mx = float(np.max(np.abs(samples))) or 1.0
     return (samples / mx) * 0.15
 
-    def read_fft(self, n: int = 1024) -> np.ndarray:
-        """Return a real-valued PCM sample buffer suitable for FFT.
-        Consumes the samples so each call returns fresh data.
-        """
-        with self._lock:
-            if not self._buffer:
-                return self._build_fallback_window(n)
 
-            # Take up to n samples and remove them from the buffer
-            count = min(len(self._buffer), n)
-            samples = np.asarray([self._buffer.popleft() for _ in range(count)], dtype=np.float64)
-
-        samples = np.nan_to_num(samples, nan=0.0, posinf=0.0, neginf=0.0)
-        if len(samples) < n:
-            samples = np.pad(samples, (0, n - len(samples)))
-        mx = float(np.max(np.abs(samples))) if samples.size else 0.0
-        if mx > 0:
-            samples = np.clip(samples / mx, -1.0, 1.0)
-        return samples.astype(np.float64)
-
-    @staticmethod
-    def _build_fallback_window(n: int) -> np.ndarray:
-        base = np.linspace(0, 2 * np.pi, max(8, n))
-        return 0.12 * np.sin(base).astype(np.float64)
+def _build_fallback_window(n: int) -> np.ndarray:
+    base = np.linspace(0, 2 * np.pi, max(8, n))
+    return 0.12 * np.sin(base).astype(np.float64)
