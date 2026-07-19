@@ -99,11 +99,7 @@ class _PlayerEngineAdapter(MediaPlayerBase):
             return
         self.positionChanged.emit(engine.position_ms)
         self.durationChanged.emit(engine.duration_ms)
-        status = (
-            QMediaPlayer.LoadedMedia
-            if engine.is_playing
-            else QMediaPlayer.NoMedia
-        )
+        status = QMediaPlayer.LoadedMedia if engine.is_playing else QMediaPlayer.NoMedia
         self.mediaStatusChanged.emit(status)
 
 
@@ -122,6 +118,19 @@ class _CustomPlayBar(MediaPlayBarBase):
         self.progressSlider.setFixedHeight(22)
         self.setFixedHeight(48)
 
+        self.progressSlider.setThemeColor(Color.ACCENT, Color.ACCENT)
+        self.playButton.setStyleSheet(
+            f"TransparentToolButton{{background:transparent;border:none;color:{Color.TEXT_PRIMARY};}}"
+            f"TransparentToolButton:hover{{color:{Color.ACCENT};}}"
+        )
+        self.volumeButton.setStyleSheet(
+            f"TransparentToolButton{{background:transparent;border:none;color:{Color.TEXT_DIM};}}"
+            f"TransparentToolButton:hover{{color:{Color.ACCENT};}}"
+        )
+
+    def paintEvent(self, e) -> None:
+        """No background fill — PlayerBar handles the backdrop."""
+
 
 class PlayerBar(QWidget):
     """Bottom dock — now-playing | SimpleMediaPlayBar | EQ badge."""
@@ -134,10 +143,9 @@ class PlayerBar(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setFixedHeight(72)
-        self.setStyleSheet(
-            f"background:rgba(10,15,30,0.75);"
-            f"border-top:1px solid {Color.BORDER};"
-        )
+        # self.setStyleSheet(
+        #     f"background:rgba(10,15,30,0.75);border-top:1px solid {Color.BORDER};"
+        # )
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(24, 12, 24, 12)
@@ -145,24 +153,23 @@ class PlayerBar(QWidget):
 
         # ── Left: Now Playing ─────────────────────────────────────────
         left = QHBoxLayout()
-        left.setSpacing(12)
+        left.setSpacing(10)
 
-        self.artwork_mini = QLabel()
+        self.artwork_mini = QLabel("🎵")
         self.artwork_mini.setFixedSize(44, 44)
+        self.artwork_mini.setAlignment(Qt.AlignCenter)
         self.artwork_mini.setStyleSheet(
             f"background:radial-gradient(circle at 35% 30%, #2E4A7D, #101B33 70%);"
-            f"border:1px solid {Color.BORDER}; border-radius:11px;"
+            f"border-radius:11px;font-size:20px;"
         )
         left.addWidget(self.artwork_mini)
 
         txt = QVBoxLayout()
         txt.setSpacing(4)
         self.track_title = QLabel("No track")
-        self.track_title.setStyleSheet(
-            "color:#fff;font-weight:600;font-size:14px;"
-        )
-        self.track_artist = QLabel("")
-        self.track_artist.setStyleSheet("color:rgba(148,163,184,0.8);font-size:12px;")
+        self.track_title.setStyleSheet("color:#fff;font-weight:500;font-size:12px;bacgkground:transparent;")
+        self.track_artist = QLabel("-")
+        self.track_artist.setStyleSheet("color:rgba(148,163,184,0.8);font-size:11px;background:transparent;")
         txt.addWidget(self.track_title)
         txt.addWidget(self.track_artist)
         left.addLayout(txt)
@@ -191,20 +198,30 @@ class PlayerBar(QWidget):
         layout.addLayout(right, 1)
 
     def _add_nav_buttons(self) -> None:
+        qss = (
+            f"MediaPlayBarButton{{background:transparent;border:none;color:{Color.TEXT_DIM};}}"
+            f"MediaPlayBarButton:hover{{color:{Color.ACCENT};}}"
+            f"MediaPlayBarButton:checked{{color:{Color.ACCENT};}}"
+        )
+
         self.shuffle_btn = MediaPlayBarButton(self)
         self.shuffle_btn.setIcon(FIF.ARROW_DOWN.icon())
         self.shuffle_btn.setCheckable(True)
         self.shuffle_btn.clicked.connect(self._on_shuffle)
+        self.shuffle_btn.setStyleSheet(qss)
 
         self.prev_btn = _NavButton(FIF.SKIP_BACK.icon())
         self.prev_btn.clicked.connect(self.prev_requested.emit)
+        self.prev_btn.setStyleSheet(qss)
 
         self.next_btn = _NavButton(FIF.SKIP_FORWARD.icon())
         self.next_btn.clicked.connect(self.next_requested.emit)
+        self.next_btn.setStyleSheet(qss)
 
         self.repeat_btn = MediaPlayBarButton(self)
         self.repeat_btn.setIcon(FIF.SYNC.icon())
         self.repeat_btn.clicked.connect(self._on_repeat)
+        self.repeat_btn.setStyleSheet(qss)
 
         bar = self.bar
         idx = bar.hBoxLayout.indexOf(bar.progressSlider)
@@ -220,15 +237,19 @@ class PlayerBar(QWidget):
 
     # ── Public updates ────────────────────────────────────────────────
 
-    def update_track_info(self, title: str, artist: str, artwork: QPixmap | None = None) -> None:
+    def update_track_info(
+        self, title: str, artist: str, artwork: QPixmap | None = None
+    ) -> None:
         self.track_title.setText(title or "No track")
-        self.track_artist.setText(artist or "")
+        self.track_artist.setText(artist or "-")
         if artwork:
+            self.artwork_mini.setText("")
             self.artwork_mini.setPixmap(
                 artwork.scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             )
         else:
             self.artwork_mini.clear()
+            self.artwork_mini.setText("🎵")
 
     def set_playing(self, playing: bool) -> None:
         self.bar.playButton.setPlay(playing)
@@ -251,7 +272,11 @@ class PlayerBar(QWidget):
         if self._adapter:
             engine = self._adapter._engine
             mode = engine.cycle_repeat()
-            icons = {"off": FIF.SYNC.icon(), "one": FIF.SYNC.icon(), "all": FIF.SYNC.icon()}
+            icons = {
+                "off": FIF.SYNC.icon(),
+                "one": FIF.SYNC.icon(),
+                "all": FIF.SYNC.icon(),
+            }
             self.repeat_btn.setIcon(icons.get(mode, FIF.SYNC.icon()))
             accent = "#4FC3F7" if mode != "off" else "inherit"
             self.repeat_btn.setStyleSheet(

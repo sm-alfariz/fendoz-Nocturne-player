@@ -162,8 +162,11 @@ class LibraryScanner:
     def _extract_artwork(self, mf) -> Optional[bytes]:
         """Extract embedded artwork from the mutagen file."""
         try:
-            if "APIC:" in mf:
-                return mf["APIC:"].data
+            for key in mf:
+                if key.startswith("APIC"):
+                    pic = mf[key]
+                    if hasattr(pic, "data"):
+                        return pic.data
             # FLAC / OGG
             for key in mf:
                 if key.startswith("metadata_block_picture") or "cover" in key.lower():

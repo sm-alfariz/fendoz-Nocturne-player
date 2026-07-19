@@ -144,18 +144,6 @@ class TopBar(QWidget):
         self.sc_btn.setToolTip("Add from SoundCloud")
         layout.addWidget(self.sc_btn)
 
-        self.avatar = QLabel("EF")
-        self.avatar.setFixedSize(36, 36)
-        self.avatar.setStyleSheet(
-            f"background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-            f"stop:0 #3B4A6B,stop:1 #1E293B);"
-            f"border:1px solid {Color.BORDER};border-radius:11px;"
-            f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.DISPLAY_BOLD};"
-            f"font-size:13px;color:{Color.ACCENT};"
-        )
-        self.avatar.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.avatar)
-
 
 class StageWidget(QWidget):
     """Center column: album art + ring + track info + spectrum bar (mockup)."""
@@ -504,19 +492,40 @@ class MainWindow(QWidget):
         if hasattr(songs, "highlight_track"):
             songs.highlight_track(track.id)
 
+        pix = None
         if track.album_id:
             conn = get_connection()
             row = conn.execute(
                 "SELECT artwork_blob FROM albums WHERE id = ?", (track.album_id,)
             ).fetchone()
             if row and row[0]:
-                pix = QPixmap()
-                if pix.loadFromData(row[0]):
-                    self.stage.ring.set_artwork(pix)
-                    self.player_bar.update_track_info(track.title, track.artist or "", pix)
-                    return
+                p = QPixmap()
+                if p.loadFromData(row[0]):
+                    pix = p
 
-        self.stage.ring.set_artwork(None)
+        if not pix and track.path:
+            # fallback: read artwork directly from file
+            try:
+                from mutagen import File as MutagenFile
+                mf = MutagenFile(track.path)
+                if mf:
+                    for key in mf:
+                        if key.startswith("APIC"):
+                            pic = mf[key]
+                            if hasattr(pic, "data"):
+                                p = QPixmap()
+                                if p.loadFromData(pic.data):
+                                    pix = p
+                                    break
+            except Exception:
+                pass
+
+        if pix:
+            self.stage.ring.set_artwork(pix)
+            self.player_bar.update_track_info(track.title, track.artist or "", pix)
+        else:
+            self.stage.ring.set_artwork(None)
+
 
         eq_name = "Flat"
         if track.id:
