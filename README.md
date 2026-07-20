@@ -1,6 +1,17 @@
-# Nocturne Music Player 🎵
+# Nocturne Music Player Offline First MP3 Player 🎵
 
-![mockup](./screen-shoots/mockup-nocturne.png)
+<div style="text-align: center;">
+  <img src="resource/img/icon.png" alt="APP MAIN LOGO">
+</div>
+
+## 📷️ Screen Shoot
+| Screen Shoot | Desc |
+| --- | --- |
+| ![mockup](./screen-shoots/mockup-nocturne.png) | Main App (Main Player) |
+| ![mockup](./screen-shoots/miniplayer.png) | Mini Player |
+| ![mockup](./screen-shoots/expand-miniplayer.png) | Expand Mini Player |
+
+
 
 Nocturne adalah aplikasi pemutar musik desktop premium dengan pendekatan **offline-first**. Semua fungsi inti berjalan penuh tanpa koneksi internet. Dirancang untuk audiophile dan kolektor musik lokal.
 
