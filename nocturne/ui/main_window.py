@@ -14,7 +14,7 @@ import sys
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
+from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -89,19 +89,16 @@ class TopBar(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setFixedHeight(52)
-        self.setStyleSheet(
-            f"background:{Color.BACKGROUND};"
-        )
-
+ 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(24, 8, 24, 8)
+        layout.setContentsMargins(24, 8, 24, 0)
         layout.setSpacing(24)
 
         logo_row = QHBoxLayout()
-        logo_row.setSpacing(10)
+        logo_row.setSpacing(5)
         logo_icon = QLabel()
-        logo_icon.setFixedSize(30, 30)
-        logo_icon.setPixmap(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")).pixmap(30, 30))
+        logo_icon.setFixedSize(40, 40)
+        logo_icon.setPixmap(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")).pixmap(40, 40))
         logo_row.addWidget(logo_icon)
         logo_text = QLabel("Nocturne")
         logo_text.setStyleSheet(
@@ -126,7 +123,7 @@ class TopBar(QWidget):
         layout.addStretch()
 
         self.miniplayer_btn = QPushButton()
-        self.miniplayer_btn.setIcon(FIF.MINIMIZE.icon())
+        self.miniplayer_btn.setIcon(FIF.MINIMIZE.icon(color=Color.TEXT_DIM))
         self.miniplayer_btn.setFixedSize(36, 36)
         self.miniplayer_btn.setFlat(True)
         self.miniplayer_btn.setToolTip("Switch to Miniplayer")
@@ -139,7 +136,7 @@ class TopBar(QWidget):
         layout.addWidget(self.miniplayer_btn)
 
         self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(FIF.SETTING.icon())
+        self.settings_btn.setIcon(FIF.SETTING.icon(color=Color.TEXT_DIM))
         self.settings_btn.setFixedSize(36, 36)
         self.settings_btn.setFlat(True)
         self.settings_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
@@ -218,18 +215,18 @@ class MainWindow(QWidget):
     """
 
     NAV_ITEMS = [
-        ("home", "Home", FIF.HOME, "home"),
-        ("songs", "Songs", FIF.MUSIC, "songs"),
-        ("artists", "Artists", FIF.PEOPLE, "artists"),
-        ("albums", "Albums", FIF.ALBUM, "albums"),
-        ("playlist", "Playlist", FIF.MUSIC_FOLDER, "playlist"),
+        ("home", "Home", FIF.HOME.icon(color=Color.TEXT_DIM), "home"),
+        ("songs", "Songs", FIF.MUSIC.icon(color=Color.TEXT_DIM), "songs"),
+        ("artists", "Artists", FIF.PEOPLE.icon(color=Color.TEXT_DIM), "artists"),
+        ("albums", "Albums", FIF.ALBUM.icon(color=Color.TEXT_DIM), "albums"),
+        ("playlist", "Playlist", FIF.MUSIC_FOLDER.icon(color=Color.TEXT_DIM), "playlist"),
         ("equalizer", "Mixer", QIcon(os.path.join(ROOT, "resource", "img", "mixer.png")), "equalizer"),
-        ("settings", "Settings", FIF.SETTING, "settings"),
+        ("settings", "Settings", FIF.SETTING.icon(color=Color.TEXT_DIM), "settings"),
     ]
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowIcon(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")))
+        # self.setWindowIcon(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")))
         self.setWindowTitle("Nocturne")
         self.setMinimumSize(1100, 720)
         self.resize(1280, 800)
@@ -402,7 +399,7 @@ class MainWindow(QWidget):
         pm = PlaylistManager()
         nav.addItem(
             routeKey="playlist_section",
-            icon=FIF.ALBUM,
+            icon=QIcon(os.path.join(ROOT, "resource", "img", "playlist.png")),
             text="My Playlist",
             position=NavigationItemPosition.SCROLL,
         )

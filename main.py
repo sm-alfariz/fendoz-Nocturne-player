@@ -9,6 +9,7 @@ import os
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
+from PySide6.QtGui import QIcon
 
 # filter noisy Qt warnings from third-party widgets
 QLoggingCategory.setFilterRules("""
@@ -29,7 +30,7 @@ def _qt_msg_handler(msg_type, context, msg):
 qInstallMessageHandler(_qt_msg_handler)
 
 # enable dpi scale
-from nocturne.config.config import cfg
+from nocturne.config.config import cfg, ROOT
 
 if cfg.get(cfg.dpiScale) != "Auto":
     os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
@@ -39,6 +40,8 @@ if cfg.get(cfg.dpiScale) != "Auto":
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
+    app.setApplicationName("Nocturne")
+    app.setWindowIcon(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")))
 
     from qfluentwidgets import setTheme, Theme
     setTheme(Theme.DARK)
