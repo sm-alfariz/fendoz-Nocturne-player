@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap, QRegion
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget, QSlider,
 )
@@ -91,12 +91,7 @@ class MiniPlayer(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground, False)
         self.setFixedWidth(W)
 
-        base_qss = (
-            f"background:{Color.CARD};"
-            f"border:1px solid {Color.BORDER};"
-            f"border-radius:{RADIUS}px;"
-        )
-        self.setStyleSheet(base_qss)
+        self.setStyleSheet(self._make_qss())
 
         # ── Root layout ──────────────────────────────────────────────
         root = QVBoxLayout(self)
@@ -347,7 +342,6 @@ class MiniPlayer(QWidget):
         # ── Start collapsed ───────────────────────────────────────────
         self.body.setVisible(False)
         self.setFixedHeight(COMPACT_H)
-        self._apply_mask()
 
         # ── Signals ───────────────────────────────────────────────────
         self.bar.mousePressEvent = self._toggle_expand  # type: ignore[method-assign]
@@ -360,6 +354,17 @@ class MiniPlayer(QWidget):
         self._timer.setInterval(300)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
+
+    # ── Dynamic stylesheet ──────────────────────────────────────────
+
+    def _make_qss(self) -> str:
+        """Top corners only when collapsed; all 4 when expanded."""
+        br = f"{RADIUS}px" if self._expanded else f"{RADIUS}px {RADIUS}px 0 0"
+        return (
+            f"background:{Color.CARD};"
+            f"border:1px solid {Color.BORDER};"
+            f"border-radius:{br};"
+        )
 
     # ── Helpers ──────────────────────────────────────────────────────
 
@@ -465,7 +470,7 @@ class MiniPlayer(QWidget):
         self.body.setVisible(self._expanded)
         h = EXPANDED_H if self._expanded else COMPACT_H
         self.setFixedHeight(h)
-        self._apply_mask()
+        self.setStyleSheet(self._make_qss())
         # Re-center
         from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
@@ -474,17 +479,6 @@ class MiniPlayer(QWidget):
             x = geo.center().x() - self.width() // 2
             y = geo.bottom() - h - 60
             self.move(x, y)
-
-    def _apply_mask(self) -> None:
-        """Clip widget to rounded rect. Collapsed = top corners only, expanded = all 4."""
-        w, h = self.width(), self.height()
-        r = RADIUS
-        region = QRegion(0, 0, w, h, QRegion.Rectangle)
-        if not self._expanded:
-            # Flat bottom — remove bottom corner ellipses
-            region -= QRegion(0, h - r, r, r, QRegion.Ellipse)
-            region -= QRegion(w - r, h - r, r, r, QRegion.Ellipse)
-        self.setMask(region)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
