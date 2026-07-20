@@ -117,18 +117,6 @@ class LyricsParser:
                 if parsed:
                     return parsed
 
-        # Also try fuzzy match — strip underscores/hyphens/case
-        stem = re.sub(r"[_\- ]+", " ", audio.stem).strip().lower()
-        for sibling in audio.parent.iterdir():
-            if sibling.suffix.lower() not in (".lrc",):
-                continue
-            sib_stem = re.sub(r"[_\- ]+", " ", sibling.stem).strip().lower()
-            if os.path.normcase(stem) == os.path.normcase(sib_stem):
-                content = sibling.read_text(encoding="utf-8", errors="replace")
-                parsed = cls.from_lrc(content)
-                if parsed:
-                    return parsed
-
         # Level 4: Online lookup (FR-5.2)
         from nocturne.config.config import cfg
         if cfg.lyricsOnline.value and title:
