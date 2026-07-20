@@ -84,11 +84,11 @@ class _MarqueeLabel(QWidget):
 
 
 class _VisualizerBars(QWidget):
-    """Animated visualizer bars matching mockup, painted via QPainter."""
+    """Animated visualizer bars with rounded background matching mockup."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._bar_heights = [random.uniform(0.2, 0.8) for _ in range(20)]
+        self._bar_heights = [random.uniform(0.15, 0.85) for _ in range(24)]
         self._timer = QTimer(self)
         self._timer.setInterval(120)
         self._timer.timeout.connect(self._jitter)
@@ -96,15 +96,23 @@ class _VisualizerBars(QWidget):
 
     def _jitter(self) -> None:
         for i in range(len(self._bar_heights)):
-            self._bar_heights[i] = max(0.08, min(0.9, self._bar_heights[i] + random.uniform(-0.12, 0.12)))
+            self._bar_heights[i] = max(0.06, min(0.95, self._bar_heights[i] + random.uniform(-0.12, 0.12)))
         self.update()
 
     def paintEvent(self, event) -> None:
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
+
+        # Background rounded rect (mockup: bg-card-alt #16213a)
+        bg = QColor(Color.CARD_SOFT)
+        p.setBrush(bg)
+        p.setPen(Qt.NoPen)
+        p.drawRoundedRect(self.rect(), 10, 10)
+
+        # Bars area with padding
         r = self.rect().adjusted(14, 16, -14, -14)
         bar_w = 4
-        gap = 5
+        gap = 4
         total_w = len(self._bar_heights) * (bar_w + gap) - gap
         ox = r.x() + (r.width() - total_w) // 2
         accent = QColor(Color.ACCENT)
