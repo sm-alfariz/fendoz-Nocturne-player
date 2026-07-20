@@ -6,8 +6,10 @@ Compact bar + expandable body with animated visualizer, full controls, volume.
 
 from __future__ import annotations
 
+import math
 import random
 
+import numpy as np
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QLinearGradient, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
@@ -84,19 +86,42 @@ class _MarqueeLabel(QWidget):
 
 
 class _VisualizerBars(QWidget):
-    """Animated visualizer bars with rounded background matching mockup."""
+    """Animated visualizer bars driven by real PCM spectrum data."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._bar_heights = [random.uniform(0.15, 0.85) for _ in range(24)]
+        self._spectrum: np.ndarray = np.zeros(0)
+        self._smooth: np.ndarray = np.zeros(24)
+        self._has_signal = False
+        self._phase = 0.0
         self._timer = QTimer(self)
-        self._timer.setInterval(120)
-        self._timer.timeout.connect(self._jitter)
+        self._timer.setInterval(33)  # ~30fps like SpectrumBar
+        self._timer.timeout.connect(self._tick)
         self._timer.start()
 
-    def _jitter(self) -> None:
-        for i in range(len(self._bar_heights)):
-            self._bar_heights[i] = max(0.06, min(0.95, self._bar_heights[i] + random.uniform(-0.12, 0.12)))
+    def set_spectrum(self, data: np.ndarray) -> None:
+        """Receive FFT magnitudes from AudioWorker."""
+        self._spectrum = data
+        self._has_signal = bool(np.any(data > 0.01))
+
+    def _tick(self) -> None:
+        n = len(self._bar_heights)
+        if self._has_signal and len(self._spectrum) > 0:
+            # Downsample spectrum to bar count
+            step = len(self._spectrum) / n
+            for i in range(n):
+                idx = min(int(i * step), len(self._spectrum) - 1)
+                target = max(0.06, min(0.95, abs(float(self._spectrum[idx]))))
+                self._smooth[i] = self._smooth[i] * 0.75 + target * 0.25
+                self._bar_heights[i] = self._smooth[i]
+        else:
+            # Idle animation when no signal
+            for i in range(n):
+                base = 0.3 + 0.25 * math.sin(self._phase + i * 0.4)
+                noise = random.uniform(-0.08, 0.08)
+                self._bar_heights[i] = max(0.06, min(0.95, base + noise))
+            self._phase += 0.12
         self.update()
 
     def paintEvent(self, event) -> None:
@@ -497,6 +522,9 @@ class MiniPlayer(_RoundedWidget):
         txt = "⏸" if playing else "▶"
         self.play_btn.setText(txt)
         self.exp_play.setText(txt)
+
+    def set_spectrum(self, data: np.ndarray) -> None:
+        self.visualizer.set_spectrum(data)
 
     # Internals
 

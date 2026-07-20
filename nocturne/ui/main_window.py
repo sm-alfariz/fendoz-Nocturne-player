@@ -326,6 +326,7 @@ class MainWindow(QWidget):
 
         # ── Miniplayer ─────────────────────────────────────────────────
         self.mini_player = MiniPlayer(self.ctrl.player_engine, None)
+        self.ctrl.audio_worker.spectrum_ready.connect(self.mini_player.set_spectrum)
         self.mini_player.play_toggled.connect(self.player_bar._toggle_play)
         self.mini_player.next_requested.connect(self.ctrl.next_track)
         self.mini_player.prev_requested.connect(self.ctrl.prev_track)
