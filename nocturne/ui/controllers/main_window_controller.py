@@ -228,39 +228,37 @@ class MainWindowController(Controller):
         """Poll VLC to detect auto-advance when events are unreliable."""
         if not self._vlc_backend or not self._playback_queue:
             return
-        idx = self.player_engine.list_index
-        if idx < 0:
+        path = self.player_engine.current_media_path
+        if not path:
             return
-        # Check if VLC has advanced to a different track than what we track
-        if 0 <= idx < len(self._playback_queue):
-            track = self._playback_queue[idx]
-            if track != self._current_track:
-                self._save_lyrics_offset_for_current()
-                self._current_track = track
-                self.player_engine.save_state()
-                self._on_track_changed(track)
+        from pathlib import Path as PPath
+        target = str(PPath(path).resolve())
+        track = next(
+            (t for t in self._playback_queue if t.path and str(PPath(t.path).resolve()) == target),
+            None,
+        )
+        if track and track != self._current_track:
+            self._save_lyrics_offset_for_current()
+            self._current_track = track
+            self.player_engine.save_state()
+            self._on_track_changed(track)
 
     def _on_vlc_media_changed(self) -> None:
         """VLC list player advanced — sync current track and UI."""
         if not self._playback_queue:
             self._current_track = None
             return
-        idx = self.player_engine.list_index
-        if 0 <= idx < len(self._playback_queue):
-            track = self._playback_queue[idx]
-        else:
-            # Fallback: match by path
-            path = self.player_engine.current_media_path
-            if not path:
-                # Retry once after a short delay — VLC may not have updated yet
-                QTimer.singleShot(300, self._on_vlc_media_changed)
-                return
-            from pathlib import Path as PPath
-            target = str(PPath(path).resolve())
-            track = next(
-                (t for t in self._playback_queue if t.path and str(PPath(t.path).resolve()) == target),
-                None,
-            )
+        # MediaListPlayer has no get_playlist_index — match by current media path
+        path = self.player_engine.current_media_path
+        if not path:
+            QTimer.singleShot(300, self._on_vlc_media_changed)
+            return
+        from pathlib import Path as PPath
+        target = str(PPath(path).resolve())
+        track = next(
+            (t for t in self._playback_queue if t.path and str(PPath(t.path).resolve()) == target),
+            None,
+        )
         if track:
             self._save_lyrics_offset_for_current()
             self._current_track = track
