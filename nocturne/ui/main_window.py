@@ -14,7 +14,7 @@ import sys
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap, QRadialGradient
+from PySide6.QtGui import QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -711,13 +711,41 @@ class MainWindow(QWidget):
         event.accept()
         self._really_quit()
 
+    def _make_miniplayer_icon(self) -> QIcon:
+        """Generate a miniplayer-relevant tray icon programmatically."""
+        size = 64
+        px = QPixmap(size, size)
+        px.fill(Qt.transparent)
+        p = QPainter(px)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        # Miniplayer body (rounded rect)
+        from nocturne.ui.theme.tokens import Color
+        body_color = QColor(Color.ACCENT)
+        path = QPainterPath()
+        path.addRoundedRect(6, 10, 52, 44, 8, 8)
+        p.fillPath(path, body_color)
+
+        # Play triangle
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor("#ffffff"))
+        tri = QPainterPath()
+        tri.moveTo(28, 22)
+        tri.lineTo(28, 42)
+        tri.lineTo(44, 32)
+        tri.closeSubpath()
+        p.drawPath(tri)
+
+        # Mini bar at bottom (progress indicator)
+        p.setBrush(QColor("#ffffff"))
+        p.drawRoundedRect(12, 46, 40, 3, 1, 1)
+
+        p.end()
+        return QIcon(px)
+
     def _setup_tray(self) -> None:
-        icon_path = os.path.join(
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")),
-            "resource", "img", "icon.png",
-        )
-        self.tray_icon = QSystemTrayIcon(QIcon(icon_path), self)
-        self.tray_icon.setToolTip("Nocturne")
+        self.tray_icon = QSystemTrayIcon(self._make_miniplayer_icon(), self)
+        self.tray_icon.setToolTip("Nocturne - Miniplayer")
 
         menu = QMenu()
 
