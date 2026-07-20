@@ -17,7 +17,7 @@ Nocturne adalah aplikasi pemutar musik desktop premium dengan pendekatan **offli
 ### Visualizer
 - **Ring visualizer** — segmen melingkar di sekitar album art, reaktif ke FFT
 - **Spectrum bar** — 50 bar horizontal dengan peak-hold + smooth decay
-- **PCM capture** — real audio dari PulseAudio monitor (`parec`), fallback sintetik
+- **PCM capture** — real audio: PulseAudio (`parec`) di Linux, WASAPI loopback (`pyaudiowpatch`) di Windows, fallback sintetik
 - **FFT** — numpy rfft di QThread (AudioWorker), 30 fps
 
 ### Lirik
@@ -77,6 +77,14 @@ sudo pacman -S pulseaudio   # Arch
 sudo apt install pulseaudio # Debian/Ubuntu
 ```
 
+### Dependencies sistem (Windows)
+
+```powershell
+# VLC — download dari https://www.videolan.org/vlc/ lalu tambah ke PATH
+# PCM capture (opsional, untuk visualizer real audio):
+pip install pyaudiowpatch
+```
+
 ## Development
 
 ```bash
@@ -100,11 +108,11 @@ sudo apt install pulseaudio # Debian/Ubuntu
 | FFT/visualizer | numpy, QPainter, QThread |
 | Database | SQLite (stdlib) WAL mode |
 | Metadata | mutagen |
-| PCM capture | PulseAudio `parec` + numpy |
+| PCM capture | PulseAudio `parec` (Linux), WASAPI loopback `pyaudiowpatch` (Windows), numpy |
 
 ## Todo / Known Gaps
 
-- [ ] FR-4.1: PCM capture hanya Linux/PulseAudio — ALSA, Windows, macOS belum
+- [ ] FR-4.1: PCM capture — Linux (PulseAudio) dan Windows (WASAPI) done, ALSA dan macOS belum
 - [ ] FR-5.2: Online lyrics lookup (belum)
 - [ ] FR-6.x: SoundCloud integration (Fase 2, belum fully wired)
 - [ ] Tests: perlu ekspansi test suite

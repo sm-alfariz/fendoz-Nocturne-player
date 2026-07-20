@@ -26,8 +26,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Stack
 - **UI**: PySide6 (QtWidgets, no QML) + PyQt-Fluent-Widgets
-- **Audio engine**: libVLC (python-vlc) — default, with QMediaPlayer fallback (config toggle in Settings)
-- **FFT/visualizer**: numpy FFT in QThread (AudioWorker), rendered via QPainter — real PCM via `parec` subprocess
+- **Audio engine**: libVLC (python-vlc, lazy import) — default, with QMediaPlayer fallback (config toggle in Settings)
+- **FFT/visualizer**: numpy FFT in QThread (AudioWorker), rendered via QPainter — real PCM via `parec` (Linux) or WASAPI loopback `pyaudiowpatch` (Windows)
 - **Database**: SQLite (sqlite3 stdlib) with WAL mode + PRAGMA user_version migrations
 - **Metadata**: mutagen (ID3, Vorbis, SYLT lyrics, embedded artwork)
 
@@ -100,7 +100,7 @@ next_track/prev_track → _navigate(delta) → uses shuffle order if active
 Full requirements spec in 14 markdown files. Key IDs: FR-1.x (playback), FR-2.x (playlists), FR-3.x (EQ), FR-4.x (visualizer), FR-5.x (lyrics).
 
 ### Known gaps
-- FR-4.1: PCM capture via PulseAudio monitor (Linux only) — ALSA, Windows, macOS not implemented
+- FR-4.1: PCM capture — Linux (PulseAudio) and Windows (WASAPI) done, ALSA and macOS not implemented
 - FR-6.x: SoundCloud integration not wired (Fase 2)
 - FR-5.2: Online lyrics lookup not implemented (Fase 2)
 - Tray: Wayland support depends on compositor — may need `qt6-wayland` or fallback to no-tray mode
