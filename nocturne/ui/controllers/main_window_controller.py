@@ -56,9 +56,10 @@ class MainWindowController(Controller):
             self.equalizer = Equalizer(self.player_engine._instance)
             self.equalizer.apply_preset("Flat")
             self.equalizer.attach_to_player(self.player_engine._player)
-            # Dispatch to main thread — VLC fires events on libvlc event thread
+            # Dispatch to main thread — VLC fires events on libvlc event thread.
+            # 500ms delay gives VLC time to update its internal list_index after auto-advance.
             self.player_engine.set_on_end(
-                lambda: QTimer.singleShot(0, self._sync_current_track)
+                lambda: QTimer.singleShot(500, self._sync_current_track)
             )
             self.player_engine.set_on_media_change(
                 lambda: QTimer.singleShot(0, self._on_vlc_media_changed)
@@ -230,6 +231,8 @@ class MainWindowController(Controller):
             # Fallback: match by path
             path = self.player_engine.current_media_path
             if not path:
+                # Retry once after a short delay — VLC may not have updated yet
+                QTimer.singleShot(300, self._on_vlc_media_changed)
                 return
             from pathlib import Path as PPath
             target = str(PPath(path).resolve())
