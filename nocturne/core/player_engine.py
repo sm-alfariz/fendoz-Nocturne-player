@@ -7,22 +7,15 @@ Single audio engine — no fallback to QMediaPlayer (05-system-architecture.md).
 
 from __future__ import annotations
 
-import json
-import time
-from pathlib import Path
-
-import numpy as np
-
-from nocturne.data.db import get_db_path
-from nocturne.core.pcm_capture import PCMCapture
+from nocturne.core.base_player_engine import BasePlayerEngine
 
 
-class PlayerEngine:
+class PlayerEngine(BasePlayerEngine):
     """Manages libVLC instance, media playback, and PCM extraction for FFT."""
 
-    _STATE_FILE = "playback_state.json"
-
     def __init__(self) -> None:
+        super().__init__()
+
         import vlc as _vlc
         global vlc
         vlc = _vlc
@@ -40,7 +33,6 @@ class PlayerEngine:
         self._list_player.set_media_list(self._list)
 
         # End-of-track → auto-advance
-        self._on_end = None
         self._player.event_manager().event_attach(
             vlc.EventType.MediaPlayerEndReached, self._on_end_reached
         )
@@ -51,16 +43,6 @@ class PlayerEngine:
         # Callbacks
         self._on_track_change = None
         self._on_media_change = None
-
-        # PCM capture for FFT visualizer
-        self._pcm = PCMCapture()
-
-        # Repeat / shuffle state
-        self._repeat_mode = "off"  # "off" | "one" | "all"
-        self._shuffle = False
-        self._original_indices: list[int] = []
-        self._shuffled_indices: list[int] = []
-        self._playlist: list[str] = []
 
     # ── Playback control ──────────────────────────────────────────────
 
@@ -118,18 +100,7 @@ class PlayerEngine:
     def volume(self, val: int) -> None:
         self._player.audio_set_volume(max(0, min(100, val)))
 
-    # ── Repeat / shuffle ──────────────────────────────────────────────
-
-    @property
-    def repeat_mode(self) -> str:
-        return self._repeat_mode
-
-    def cycle_repeat(self) -> str:
-        modes = ["off", "one", "all"]
-        idx = (modes.index(self._repeat_mode) + 1) % len(modes)
-        self._repeat_mode = modes[idx]
-        self._apply_repeat()
-        return self._repeat_mode
+    # ── Repeat (VLC-specific backend) ─────────────────────────────────
 
     def _apply_repeat(self) -> None:
         if self._repeat_mode == "one":
@@ -139,15 +110,11 @@ class PlayerEngine:
         else:
             self._list_player.set_playback_mode(vlc.PlaybackMode.default)
 
-    @property
-    def shuffle(self) -> bool:
-        return self._shuffle
-
     def toggle_shuffle(self) -> bool:
         self._shuffle = not self._shuffle
         if self._shuffle:
             import random
-            self._shuffled_indices = list(range(len(self._playlist)))
+            self._shuffled_indices = list(range(len(self._playlist_paths)))
             random.shuffle(self._shuffled_indices)
         return self._shuffle
 
@@ -158,7 +125,7 @@ class PlayerEngine:
         self._list = self._instance.media_list_new()
         for p in paths:
             self._list.add_media(self._instance.media_new(p))
-        self._playlist = paths
+        self._playlist_paths = paths
         self._list_player.set_media_list(self._list)
         self._pcm.start()
         self._list_player.play_item_at_index(start_index)
@@ -169,11 +136,6 @@ class PlayerEngine:
         mrl = "file://" + quote(str(path))
         media = self._instance.media_new(mrl)
         self._player.set_media(media)
-
-    def set_on_end(self, callback) -> None:
-        """Register callback when track finishes playing.
-        VLC list player auto-advances — callback just updates UI state."""
-        self._on_end = callback
 
     def set_on_media_change(self, callback) -> None:
         """Register callback when VLC advances to next media in list."""
@@ -189,16 +151,6 @@ class PlayerEngine:
         if self._on_media_change:
             self._on_media_change()
 
-    # ── PCM / FFT bridge ──────────────────────────────────────────────
-
-    def pcm_data(self, n_samples: int = 1024) -> np.ndarray | None:
-        """Return PCM samples for FFT processing. Called from AudioWorker.
-
-        ponytail: Real PCM capture via PulseAudio monitor source — currently
-        returns None so visualizer shows flat bars. Add in next iteration.
-        """
-        return self._pcm.read_fft(n_samples)
-
     # ── Track info ────────────────────────────────────────────────────
 
     @property
@@ -211,35 +163,6 @@ class PlayerEngine:
                 return unquote(mrl[len("file://"):])
             return mrl
         return None
-
-    # ── Playback state persistence ────────────────────────────────────
-
-    def save_state(self) -> None:
-        """Save current playback position for resume (FR-1.5)."""
-        state = {
-            "path": self.current_media_path,
-            "position_ms": self.position_ms,
-            "volume": self.volume,
-            "timestamp": time.time(),
-        }
-        state_path = Path(get_db_path()).parent / self._STATE_FILE
-        try:
-            for p in [state_path]:
-                with open(p, "w") as f:
-                    json.dump(state, f)
-        except OSError:
-            pass
-
-    def load_state(self) -> dict | None:
-        """Load saved playback state (returns None if no saved state)."""
-        state_path = Path(get_db_path()).parent / self._STATE_FILE
-        if not state_path.exists():
-            return None
-        try:
-            with open(state_path) as f:
-                return json.load(f)
-        except (OSError, json.JSONDecodeError):
-            return None
 
     def cleanup(self) -> None:
         """Release VLC resources."""

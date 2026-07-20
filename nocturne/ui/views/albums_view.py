@@ -12,6 +12,8 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
+from nocturne.ui.common import clear_flow_layout, make_empty_label, TITLE_STYLE
+from nocturne.ui.theme.tokens import Color
 
 
 class AlbumCard(CardWidget):
@@ -27,7 +29,7 @@ class AlbumCard(CardWidget):
         self.artwork = QLabel()
         self.artwork.setFixedSize(140, 140)
         self.artwork.setAlignment(Qt.AlignCenter)
-        self.artwork.setStyleSheet("background: #1E293B; border-radius: 8px;")
+        self.artwork.setStyleSheet(f"background: {Color.CARD}; border-radius: 8px;")
         if artwork_blob:
             pixmap = QPixmap()
             if pixmap.loadFromData(artwork_blob):
@@ -40,7 +42,7 @@ class AlbumCard(CardWidget):
         layout.addWidget(self.title_label)
 
         self.subtitle = QLabel(f"{artist or 'Unknown'} · {track_count}")
-        self.subtitle.setStyleSheet("color: #7C8AA5; font-size: 11px;")
+        self.subtitle.setStyleSheet(f"color: {Color.TEXT_DIM}; font-size: 11px;")
         self.subtitle.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.subtitle)
 
@@ -66,7 +68,7 @@ class AlbumsView(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
 
         title = QLabel("Albums")
-        title.setStyleSheet("font-size: 24px; font-weight: 700;")
+        title.setStyleSheet(TITLE_STYLE)
         layout.addWidget(title)
 
         self.grid = QWidget()
@@ -78,7 +80,7 @@ class AlbumsView(QWidget):
         self.load()
 
     def load(self, rows: list[tuple] | None = None) -> None:
-        self._clear_layout()
+        clear_flow_layout(self.grid_layout)
         if rows is None:
             conn = get_connection()
             query = (
@@ -92,22 +94,9 @@ class AlbumsView(QWidget):
             query += "GROUP BY a.id ORDER BY a.title"
             rows = conn.execute(query, params).fetchall()
         if not rows:
-            label = QLabel("Belum ada album.\nScan folder musik di Settings.")
-            label.setAlignment(Qt.AlignCenter)
-            label.setStyleSheet("color:#7C8AA5;font-size:16px;padding:60px;")
+            label = make_empty_label("Belum ada album.\nScan folder musik di Settings.")
             self.grid_layout.addWidget(label)
             return
         for r in rows:
             card = AlbumCard(r[0], r[1], r[2], r[3], r[4], self.grid)
             self.grid_layout.addWidget(card)
-
-    def _clear_layout(self) -> None:
-        from PySide6.QtWidgets import QLayoutItem, QWidget
-        while self.grid_layout.count():
-            item = self.grid_layout.takeAt(0)
-            if isinstance(item, QWidget):
-                item.deleteLater()
-            elif isinstance(item, QLayoutItem):
-                w = item.widget()
-                if w:
-                    w.deleteLater()

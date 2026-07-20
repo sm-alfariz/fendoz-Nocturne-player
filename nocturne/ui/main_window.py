@@ -260,7 +260,7 @@ class MainWindow(QWidget):
                 w = SettingInterface(self.ctrl.settings, self)
                 w.scan_requested.connect(self._scan_library)
             elif key == "equalizer":
-                w = EqualizerView(self.ctrl.equalizer_ctrl, self)
+                w = EqualizerView(self.ctrl.equalizer, assign_callback=self.ctrl._assign_eq_to_track, parent=self)
             elif key == "playlist":
                 w = PlaylistView(self)
                 w.track_activated.connect(self._play_track)

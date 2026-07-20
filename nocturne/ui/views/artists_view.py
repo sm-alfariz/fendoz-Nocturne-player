@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
+from nocturne.ui.common import clear_flow_layout, make_empty_label, TITLE_STYLE
+from nocturne.ui.theme.tokens import Color
 
 
 class ArtistCard(CardWidget):
@@ -22,7 +24,7 @@ class ArtistCard(CardWidget):
         self.name_label = QLabel(name)
         self.name_label.setStyleSheet("font-size: 16px; font-weight: 600;")
         self.count_label = QLabel(f"{track_count} tracks")
-        self.count_label.setStyleSheet("color: #7C8AA5; font-size: 12px;")
+        self.count_label.setStyleSheet(f"color: {Color.TEXT_DIM}; font-size: 12px;")
         layout.addWidget(self.name_label, 0, Qt.AlignCenter)
         layout.addWidget(self.count_label, 0, Qt.AlignCenter)
 
@@ -48,7 +50,7 @@ class ArtistsView(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
 
         title = QLabel("Artists")
-        title.setStyleSheet("font-size: 24px; font-weight: 700;")
+        title.setStyleSheet(TITLE_STYLE)
         layout.addWidget(title)
 
         self.grid = QWidget()
@@ -60,7 +62,7 @@ class ArtistsView(QWidget):
         self.load()
 
     def load(self, rows: list[tuple[str, int]] | None = None) -> None:
-        self._clear_layout()
+        clear_flow_layout(self.grid_layout)
         if rows is None:
             conn = get_connection()
             query = (
@@ -74,22 +76,9 @@ class ArtistsView(QWidget):
             query += "GROUP BY artist ORDER BY artist"
             rows = conn.execute(query, params).fetchall()
         if not rows:
-            label = QLabel("Belum ada artis.\nScan folder musik di Settings.")
-            label.setAlignment(Qt.AlignCenter)
-            label.setStyleSheet("color:#7C8AA5;font-size:16px;padding:60px;")
+            label = make_empty_label("Belum ada artis.\nScan folder musik di Settings.")
             self.grid_layout.addWidget(label)
             return
         for row in rows:
             card = ArtistCard(row[0], row[1], self.grid)
             self.grid_layout.addWidget(card)
-
-    def _clear_layout(self) -> None:
-        from PySide6.QtWidgets import QLayoutItem, QWidget
-        while self.grid_layout.count():
-            item = self.grid_layout.takeAt(0)
-            if isinstance(item, QWidget):
-                item.deleteLater()
-            elif isinstance(item, QLayoutItem):
-                w = item.widget()
-                if w:
-                    w.deleteLater()

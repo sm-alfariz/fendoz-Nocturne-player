@@ -17,15 +17,8 @@ from PySide6.QtWidgets import (
 )
 
 from nocturne.core.player_engine import PlayerEngine
+from nocturne.ui.common import fmt_ms
 from nocturne.ui.theme.tokens import Color, FontWeights
-
-
-def _fmt_ms(ms: int) -> str:
-    if ms < 0:
-        ms = 0
-    total_s = ms // 1000
-    m, s = divmod(total_s, 60)
-    return f"{m}:{s:02d}"
 
 
 COMPACT_H = 76
@@ -549,11 +542,11 @@ class MiniPlayer(_RoundedWidget):
         cw = self.compact_progress.width()
         self.compact_fill.setFixedWidth(int(cw * ratio))
 
-        self.compact_time.setText(_fmt_ms(pos))
-        self.compact_duration.setText(_fmt_ms(dur))
+        self.compact_time.setText(fmt_ms(pos))
+        self.compact_duration.setText(fmt_ms(dur))
 
-        self.exp_time.setText(_fmt_ms(pos))
-        self.exp_duration.setText(_fmt_ms(dur))
+        self.exp_time.setText(fmt_ms(pos))
+        self.exp_duration.setText(fmt_ms(dur))
 
         sw = self.scrub_track.width()
         self.scrub_fill.setFixedWidth(int(sw * ratio))

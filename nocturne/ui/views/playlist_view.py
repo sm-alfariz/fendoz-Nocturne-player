@@ -24,7 +24,7 @@ from qfluentwidgets import InfoBar, MessageBox
 from nocturne.common.signal_bus import signalBus
 from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
-from nocturne.ui.controllers.playlist_controller import PlaylistController
+from nocturne.ui.common import TITLE_STYLE
 
 
 class PlaylistDetail(QWidget):
@@ -33,9 +33,9 @@ class PlaylistDetail(QWidget):
     track_activated = Signal(object)  # Track
     play_playlist_track = Signal(object, list)  # Track, queue
 
-    def __init__(self, controller: PlaylistController, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self._controller = controller
+        self._pm = PlaylistManager()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
 
@@ -82,11 +82,15 @@ class PlaylistDetail(QWidget):
         self._tracks: list[Track] = []
         self._suppress_reorder = False
 
+    def _get_name(self, playlist_id: int) -> str:
+        playlists = self._pm.list_all()
+        return next((p.name for p in playlists if p.id == playlist_id), "Playlist")
+
     def load(self, playlist_id: int) -> None:
         self._playlist_id = playlist_id
-        name = self._controller.get_name(playlist_id)
+        name = self._get_name(playlist_id)
         self.title_label.setText(name)
-        self._tracks = self._controller.get_tracks(playlist_id)
+        self._tracks = self._pm.get_tracks(playlist_id)
         self._suppress_reorder = True
         self.track_list.clear()
         for t in self._tracks:
@@ -105,7 +109,7 @@ class PlaylistDetail(QWidget):
         remove_action = menu.addAction("Remove from playlist")
         action = menu.exec(self.track_list.viewport().mapToGlobal(pos))
         if action == remove_action:
-            self._controller.remove_track(self._playlist_id, track_id)
+            self._pm.remove_track(self._playlist_id, track_id)
             self.load(self._playlist_id)
 
     def _on_rows_inserted(self, parent, first, last) -> None:
@@ -115,7 +119,7 @@ class PlaylistDetail(QWidget):
         ids: list[int] = []
         for i in range(self.track_list.count()):
             ids.append(self.track_list.item(i).data(Qt.UserRole))
-        self._controller.reorder_tracks(self._playlist_id, ids)
+        self._pm.reorder(self._playlist_id, ids)
 
     def _export_m3u(self) -> None:
         if self._playlist_id is None:
@@ -127,7 +131,7 @@ class PlaylistDetail(QWidget):
         )
         if not path:
             return
-        self._controller.export_m3u(self._playlist_id, path)
+        self._pm.export_m3u(self._playlist_id, path)
         InfoBar.success(title="Export", content=f"Exported {len(self._tracks)} tracks",
                         parent=self, duration=2000)
 
@@ -192,13 +196,13 @@ class PlaylistView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._controller = PlaylistController(self)
+        self._pm = PlaylistManager()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
 
         header = QHBoxLayout()
         title = QLabel("Playlists")
-        title.setStyleSheet("font-size: 24px; font-weight: 700;")
+        title.setStyleSheet(TITLE_STYLE)
         header.addWidget(title)
         header.addStretch()
 
@@ -230,7 +234,7 @@ class PlaylistView(QWidget):
         self.playlist_list.currentRowChanged.connect(self._on_select)
         splitter.addWidget(self.playlist_list)
 
-        self.detail = PlaylistDetail(self._controller, self)
+        self.detail = PlaylistDetail(self)
         self.detail.track_activated.connect(self.track_activated.emit)
         self.detail.play_playlist_track.connect(self.play_playlist_track.emit)
         self.detail.del_btn.clicked.connect(self._delete_current)
@@ -247,7 +251,7 @@ class PlaylistView(QWidget):
     def _reload_list(self) -> None:
         self.playlist_list.blockSignals(True)
         self.playlist_list.clear()
-        for p in self._controller.list_all():
+        for p in self._pm.list_all():
             item = QListWidgetItem(p.name)
             item.setData(Qt.UserRole, p.id)
             self.playlist_list.addItem(item)
@@ -263,7 +267,7 @@ class PlaylistView(QWidget):
     def _create(self) -> None:
         name, ok = QInputDialog.getText(self, "New Playlist", "Playlist name:")
         if ok and name.strip():
-            self._controller.create(name.strip())
+            self._pm.create(name.strip())
             self._reload_list()
 
     def _delete_current(self) -> None:
@@ -272,7 +276,7 @@ class PlaylistView(QWidget):
             return
         dialog = MessageBox("Delete Playlist", "Delete this playlist permanently?", self)
         if dialog.exec():
-            self._controller.delete(pid)
+            self._pm.delete(pid)
             self._reload_list()
             self.detail.title_label.setText("Select a playlist")
             self.detail.track_list.clear()
@@ -284,7 +288,7 @@ class PlaylistView(QWidget):
         )
         if not path:
             return
-        result = self._controller.import_m3u(path)
+        result = self._pm.import_m3u(path)
         if result["missing"]:
             InfoBar.warning(
                 parent=self,
@@ -293,10 +297,9 @@ class PlaylistView(QWidget):
                 duration=3000,
             )
         if result["found"]:
-            pid = self._controller.create(result["playlist_name"])
+            pid = self._pm.create(result["playlist_name"])
             for t in result["found"]:
-                from nocturne.data.playlist_manager import PlaylistManager
-                PlaylistManager().add_track(pid, t.id)
+                self._pm.add_track(pid, t.id)
             self._reload_list()
             InfoBar.success(
                 parent=self,

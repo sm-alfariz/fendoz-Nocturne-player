@@ -12,16 +12,8 @@ from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSlider, QStyle, QVBoxLayout, QWidget
 
 from nocturne.core.player_engine import PlayerEngine
+from nocturne.ui.common import fmt_ms
 from nocturne.ui.theme.tokens import Color, FontWeights
-
-
-def _fmt_ms(ms: int) -> str:
-    """Format milliseconds to m:ss."""
-    if ms < 0:
-        ms = 0
-    total_s = ms // 1000
-    m, s = divmod(total_s, 60)
-    return f"{m}:{s:02d}"
 
 
 class ClickableSlider(QSlider):
@@ -368,8 +360,8 @@ class PlayerBar(QWidget):
         self.progress_slider.setValue(pos)
         self.progress_slider.blockSignals(False)
 
-        self.time_label.setText(_fmt_ms(pos))
-        self.duration_label.setText(_fmt_ms(dur))
+        self.time_label.setText(fmt_ms(pos))
+        self.duration_label.setText(fmt_ms(dur))
 
         # Sync play state button with engine
         playing = self._engine.is_playing

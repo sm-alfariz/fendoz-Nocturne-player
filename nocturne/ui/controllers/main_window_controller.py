@@ -28,8 +28,6 @@ from nocturne.ui.controllers.home_controller import HomeController
 from nocturne.ui.controllers.songs_controller import SongsController
 from nocturne.ui.controllers.artists_controller import ArtistsController
 from nocturne.ui.controllers.albums_controller import AlbumsController
-from nocturne.ui.controllers.playlist_controller import PlaylistController
-from nocturne.ui.controllers.equalizer_controller import EqualizerController
 from nocturne.ui.controllers.settings_controller import SettingsController
 
 
@@ -85,10 +83,6 @@ class MainWindowController(Controller):
         self.songs = SongsController(self)
         self.artists = ArtistsController(self)
         self.albums = AlbumsController(self)
-        self.playlists = PlaylistController(self)
-        self.equalizer_ctrl = EqualizerController(
-            self.equalizer, assign_callback=self._assign_eq_to_track, parent=self
-        )
         self.settings = SettingsController(self)
 
         # ── Signal bus wiring ─────────────────────────────────────────

@@ -5,12 +5,14 @@ equalizer_view.py — 10-band equalizer UI with presets.
 
 from __future__ import annotations
 
+from typing import Callable, Optional
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 from qfluentwidgets import ComboBox, PushButton
 
-from nocturne.core.equalizer import BAND_LABELS
-from nocturne.ui.controllers.equalizer_controller import EqualizerController
+from nocturne.core.equalizer import BAND_LABELS, Equalizer
+from nocturne.ui.common import TITLE_STYLE
 from nocturne.ui.theme.tokens import Color
 
 
@@ -55,21 +57,22 @@ class BandSlider(QWidget):
 class EqualizerView(QWidget):
     """Full equalizer page with sliders + presets."""
 
-    def __init__(self, controller: EqualizerController, parent=None):
+    def __init__(self, equalizer: Equalizer, assign_callback: Optional[Callable] = None, parent=None):
         super().__init__(parent)
-        self._controller = controller
+        self._eq = equalizer
+        self._assign_callback = assign_callback
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
         title = QLabel("Equalizer")
-        title.setStyleSheet("font-size: 24px; font-weight: 700;")
+        title.setStyleSheet(TITLE_STYLE)
         layout.addWidget(title)
 
         preset_row = QHBoxLayout()
         preset_row.addWidget(QLabel("Preset:"))
         self.preset_combo = ComboBox()
-        self.preset_combo.addItems(list(controller.all_presets().keys()))
+        self.preset_combo.addItems(list(equalizer.all_presets().keys()))
         self.preset_combo.currentTextChanged.connect(self._on_preset_change)
         preset_row.addWidget(self.preset_combo)
         preset_row.addStretch()
@@ -96,25 +99,26 @@ class EqualizerView(QWidget):
         layout.addStretch()
 
     def _on_preset_change(self, name: str) -> None:
-        presets = self._controller.all_presets()
+        presets = self._eq.all_presets()
         if name in presets:
             values = presets[name]
             for i, s in enumerate(self._sliders):
                 s.set_value(values[i])
-            self._controller.apply_preset(name)
+            self._eq.apply_preset(name)
 
     def _on_band_changed(self, index: int, db: float) -> None:
-        self._controller.set_band(index, db)
+        self._eq.set_band(index, db)
         self.preset_combo.setCurrentText("Custom")
 
     def _save_custom(self) -> None:
         values = [s.slider.value() / 10.0 for s in self._sliders]
-        self._controller.save_custom_preset("Custom", values)
+        self._eq.save_custom_preset("Custom", values)
 
     def _assign_to_track(self) -> None:
         preset = self.preset_combo.currentText()
-        self._controller.assign_to_track(preset)
+        if self._assign_callback:
+            self._assign_callback(preset)
 
     def load_for_track(self, eq_preset: str | None) -> None:
-        if eq_preset and eq_preset in self._controller.all_presets():
+        if eq_preset and eq_preset in self._eq.all_presets():
             self.preset_combo.setCurrentText(eq_preset)
