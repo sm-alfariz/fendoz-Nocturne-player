@@ -124,30 +124,31 @@ class TopBar(QWidget):
 
         layout.addStretch()
 
-        self.notif_btn = QPushButton()
-        self.notif_btn.setIcon(FIF.RINGER.icon())
-        self.notif_btn.setFixedSize(36, 36)
-        self.notif_btn.setFlat(True)
-        self.notif_btn.setStyleSheet(
+        self.miniplayer_btn = QPushButton()
+        self.miniplayer_btn.setIcon(FIF.MINIMIZE.icon())
+        self.miniplayer_btn.setFixedSize(36, 36)
+        self.miniplayer_btn.setFlat(True)
+        self.miniplayer_btn.setToolTip("Switch to Miniplayer")
+        self.miniplayer_btn.setStyleSheet(
             f"QPushButton{{background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
             f"border-radius:11px;color:{Color.TEXT_DIM};}}"
             f"QPushButton:hover{{color:{Color.ACCENT};border-color:{Color.ACCENT};"
             f"box-shadow:0 0 14px rgba(79,195,247,0.25);}}"
         )
-        layout.addWidget(self.notif_btn)
+        layout.addWidget(self.miniplayer_btn)
 
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(FIF.SETTING.icon())
         self.settings_btn.setFixedSize(36, 36)
         self.settings_btn.setFlat(True)
-        self.settings_btn.setStyleSheet(self.notif_btn.styleSheet())
+        self.settings_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
         layout.addWidget(self.settings_btn)
 
         self.sc_btn = QPushButton()
         self.sc_btn.setIcon(FIF.CLOUD.icon())
         self.sc_btn.setFixedSize(36, 36)
         self.sc_btn.setFlat(True)
-        self.sc_btn.setStyleSheet(self.notif_btn.styleSheet())
+        self.sc_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
         self.sc_btn.setToolTip("Add from SoundCloud")
         layout.addWidget(self.sc_btn)
 
@@ -300,6 +301,7 @@ class MainWindow(QWidget):
         self.top_bar.settings_btn.clicked.connect(lambda: self.show_view("settings"))
         self.top_bar.search.textChanged.connect(lambda: self._search_timer.start())
         self.top_bar.sc_btn.clicked.connect(self._open_soundcloud_dialog)
+        self.top_bar.miniplayer_btn.clicked.connect(self._show_miniplayer)
 
         # Search with debounce (150ms)
         self._search_timer = QTimer(self)
