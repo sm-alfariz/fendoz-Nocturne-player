@@ -200,6 +200,7 @@ class MiniPlayer(_RoundedWidget):
         super().__init__(parent)
         self._engine = engine
         self._is_playing = False
+        self._drag_pos = None
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
@@ -589,3 +590,17 @@ class MiniPlayer(_RoundedWidget):
         if self._engine:
             ratio = self._engine.position_ms / max(self._engine.duration_ms, 1)
             self.scrub_fill.setFixedWidth(int(sw * ratio))
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._drag_pos is not None and event.buttons() & Qt.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    def mouseReleaseEvent(self, event) -> None:
+        self._drag_pos = None
+        event.accept()
