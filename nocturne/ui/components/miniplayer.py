@@ -18,8 +18,27 @@ from PySide6.QtWidgets import (
 
 from nocturne.core.player_engine import PlayerEngine
 from nocturne.ui.common import fmt_ms
+from nocturne.ui.icon_utils import pixmap_scaled
 from nocturne.ui.theme.tokens import Color, FontWeights
 
+
+# Lazy icon cache - populated on first use (needs QApplication)
+_MICO = None
+
+
+def _mico():
+    global _MICO
+    if _MICO is None:
+        _MICO = {
+            "play": pixmap_scaled("play.png", 16, 16),
+            "pause": pixmap_scaled("pause.png", 16, 16),
+            "prev": pixmap_scaled("previous.png", 14, 14),
+            "next": pixmap_scaled("next.png", 14, 14),
+            "shuffle": pixmap_scaled("shuffle.png", 14, 14),
+            "repeat": pixmap_scaled("repeat.png", 14, 14),
+            "vol": pixmap_scaled("speaker.png", 14, 14),
+        }
+    return _MICO
 
 COMPACT_H = 76
 EXPANDED_H = 440
@@ -181,6 +200,19 @@ class _RoundedWidget(QWidget):
         p.drawPath(path)
 
 
+def _mp_icon_btn(pm: QPixmap, size: int = 28) -> QPushButton:
+    """Create a transparent button with a pixmap icon for miniplayer."""
+    btn = QPushButton()
+    btn.setFixedSize(size, size)
+    btn.setIcon(pm)
+    btn.setIconSize(pm.size())
+    btn.setStyleSheet(
+        f"QPushButton{{background:transparent;border:none;}}"
+        f"QPushButton:hover{{background:rgba(79,195,247,0.12);border-radius:{size//2}px;}}"
+    )
+    return btn
+
+
 class MiniPlayer(_RoundedWidget):
     """Collapsible always-on-top miniplayer. Compact bar + expandable body."""
 
@@ -214,12 +246,12 @@ class MiniPlayer(_RoundedWidget):
         bar_layout.setSpacing(10)
 
         # Artwork
-        self.artwork = QLabel("\U0001f3b5")
+        self.artwork = QLabel()
         self.artwork.setFixedSize(44, 44)
         self.artwork.setAlignment(Qt.AlignCenter)
         self.artwork.setStyleSheet(
             "background:radial-gradient(circle at 35% 30%, #2E4A7D, #101B33 70%);"
-            "border-radius:10px;font-size:20px;"
+            "border-radius:10px;"
         )
         bar_layout.addWidget(self.artwork)
 
@@ -271,7 +303,7 @@ class MiniPlayer(_RoundedWidget):
         bar_layout.addLayout(meta, 1)
 
         # Controls in bar
-        self.prev_btn = self._icon_btn("⏮", 28, 28)
+        self.prev_btn = _mp_icon_btn(_mico()["prev"], 28)
         self.prev_btn.clicked.connect(self.prev_requested.emit)
         bar_layout.addWidget(self.prev_btn)
 
@@ -279,7 +311,7 @@ class MiniPlayer(_RoundedWidget):
         self.play_btn.clicked.connect(self._toggle_play)
         bar_layout.addWidget(self.play_btn)
 
-        self.next_btn = self._icon_btn("⏭", 28, 28)
+        self.next_btn = _mp_icon_btn(_mico()["next"], 28)
         self.next_btn.clicked.connect(self.next_requested.emit)
         bar_layout.addWidget(self.next_btn)
 
@@ -359,26 +391,28 @@ class MiniPlayer(_RoundedWidget):
         ctrl_row.setSpacing(22)
         ctrl_row.setContentsMargins(0, 18, 0, 4)
 
-        self.shuffle_btn = self._side_btn("\U0001f500")
+        self.shuffle_btn = _mp_icon_btn(_mico()["shuffle"], 30)
         ctrl_row.addWidget(self.shuffle_btn)
 
-        self.exp_prev = self._side_btn("⏮")
+        self.exp_prev = _mp_icon_btn(_mico()["prev"], 30)
         ctrl_row.addWidget(self.exp_prev)
 
-        self.exp_play = QPushButton("▶")
+        self.exp_play = QPushButton()
         self.exp_play.setFixedSize(46, 46)
+        self.exp_play.setIcon(_mico()["play"])
+        self.exp_play.setIconSize(_mico()["play"].size())
         self.exp_play.setStyleSheet(
-            f"QPushButton{{font-size:18px;background:{Color.ACCENT};"
-            f"border-radius:23px;color:#fff;border:none;}}"
+            f"QPushButton{{background:{Color.ACCENT};"
+            f"border-radius:23px;border:none;}}"
             f"QPushButton:hover{{background:{Color.PRIMARY};}}"
         )
         self.exp_play.clicked.connect(self._toggle_play)
         ctrl_row.addWidget(self.exp_play)
 
-        self.exp_next = self._side_btn("⏭")
+        self.exp_next = _mp_icon_btn(_mico()["next"], 30)
         ctrl_row.addWidget(self.exp_next)
 
-        self.repeat_btn = self._side_btn("\U0001f501")
+        self.repeat_btn = _mp_icon_btn(_mico()["repeat"], 30)
         ctrl_row.addWidget(self.repeat_btn)
 
         body_layout.addLayout(ctrl_row)
@@ -387,11 +421,10 @@ class MiniPlayer(_RoundedWidget):
         vol_row = QHBoxLayout()
         vol_row.setContentsMargins(0, 18, 0, 0)
         vol_row.setSpacing(10)
-        self.vol_icon = QLabel("\U0001f50a")
+        self.vol_icon = QLabel()
         self.vol_icon.setFixedSize(20, 20)
-        self.vol_icon.setStyleSheet(
-            f"color:{Color.TEXT_DIM};font-size:14px;background:transparent;"
-        )
+        self.vol_icon.setPixmap(_mico()["vol"])
+        self.vol_icon.setStyleSheet("background:transparent;")
         vol_row.addWidget(self.vol_icon)
 
         self.vol_slider = QSlider(Qt.Horizontal)
@@ -412,7 +445,8 @@ class MiniPlayer(_RoundedWidget):
         # Footer buttons
         footer = QHBoxLayout()
         footer.setContentsMargins(0, 14, 0, 0)
-        self.like_btn = QPushButton("♡ Suka")
+        self.like_btn = QPushButton(" Suka")
+        self.like_btn.setIcon(pixmap_scaled("mixer.png", 14, 14))
         self.like_btn.setStyleSheet(
             f"QPushButton{{background:transparent;border:none;"
             f"color:{Color.TEXT_DIM};font-size:11px;}}"
@@ -424,7 +458,8 @@ class MiniPlayer(_RoundedWidget):
 
         footer.addStretch()
 
-        self.queue_btn = QPushButton("☰ Antrean")
+        self.queue_btn = QPushButton(" Antrean")
+        self.queue_btn.setIcon(pixmap_scaled("queue.png", 14, 14))
         self.queue_btn.setStyleSheet(
             f"QPushButton{{background:transparent;border:none;"
             f"color:{Color.TEXT_DIM};font-size:11px;}}"
@@ -463,33 +498,15 @@ class MiniPlayer(_RoundedWidget):
 
     # Helpers
 
-    def _icon_btn(self, text: str, w: int, h: int) -> QPushButton:
-        btn = QPushButton(text)
-        btn.setFixedSize(w, h)
-        btn.setStyleSheet(
-            f"QPushButton{{background:transparent;border:none;"
-            f"color:{Color.TEXT_DIM};font-size:14px;}}"
-            f"QPushButton:hover{{color:{Color.ACCENT};}}"
-        )
-        return btn
-
     def _play_btn(self) -> QPushButton:
-        btn = QPushButton("▶")
+        btn = QPushButton()
         btn.setFixedSize(34, 34)
+        btn.setIcon(_mico()["play"])
+        btn.setIconSize(_mico()["play"].size())
         btn.setStyleSheet(
-            f"QPushButton{{font-size:16px;background:{Color.ACCENT};"
-            f"border-radius:17px;color:#fff;border:none;}}"
+            f"QPushButton{{background:{Color.ACCENT};"
+            f"border-radius:17px;border:none;}}"
             f"QPushButton:hover{{background:{Color.PRIMARY};}}"
-        )
-        return btn
-
-    def _side_btn(self, text: str) -> QPushButton:
-        btn = QPushButton(text)
-        btn.setFixedSize(30, 30)
-        btn.setStyleSheet(
-            f"QPushButton{{background:transparent;border:none;"
-            f"color:{Color.TEXT_DIM};font-size:14px;}}"
-            f"QPushButton:hover{{color:{Color.ACCENT};}}"
         )
         return btn
 
@@ -503,19 +520,19 @@ class MiniPlayer(_RoundedWidget):
         self.exp_title.setText(title or "No track")
         self.exp_artist.setText(artist or "-")
         if artwork:
-            self.artwork.setText("")
             self.artwork.setPixmap(
                 artwork.scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             )
         else:
             self.artwork.clear()
-            self.artwork.setText("\U0001f3b5")
 
     def set_playing(self, playing: bool) -> None:
         self._is_playing = playing
-        txt = "⏸" if playing else "▶"
-        self.play_btn.setText(txt)
-        self.exp_play.setText(txt)
+        ico = _mico()["pause"] if playing else _mico()["play"]
+        self.play_btn.setIcon(ico)
+        self.play_btn.setIconSize(ico.size())
+        self.exp_play.setIcon(ico)
+        self.exp_play.setIconSize(ico.size())
 
     def set_spectrum(self, data: np.ndarray) -> None:
         self.visualizer.set_spectrum(data)
@@ -554,9 +571,11 @@ class MiniPlayer(_RoundedWidget):
         playing = self._engine.is_playing
         if playing != self._is_playing:
             self._is_playing = playing
-            txt = "⏸" if playing else "▶"
-            self.play_btn.setText(txt)
-            self.exp_play.setText(txt)
+            ico = _mico()["pause"] if playing else _mico()["play"]
+            self.play_btn.setIcon(ico)
+            self.play_btn.setIconSize(ico.size())
+            self.exp_play.setIcon(ico)
+            self.exp_play.setIconSize(ico.size())
 
     def _toggle_expand(self, event=None) -> None:
         self._expanded = not self._expanded

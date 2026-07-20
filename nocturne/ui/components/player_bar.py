@@ -13,7 +13,27 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSlider, QStyle,
 
 from nocturne.core.player_engine import PlayerEngine
 from nocturne.ui.common import fmt_ms
+from nocturne.ui.icon_utils import pixmap_scaled
 from nocturne.ui.theme.tokens import Color, FontWeights
+
+# Lazy icon cache — populated on first use (needs QApplication)
+_ICO: dict[str, QPixmap] | None = None
+
+
+def _ico() -> dict[str, QPixmap]:
+    global _ICO
+    if _ICO is None:
+        _ICO = {
+            "play": pixmap_scaled("play.png", 18, 18),
+            "pause": pixmap_scaled("pause.png", 18, 18),
+            "prev": pixmap_scaled("previous.png", 16, 16),
+            "next": pixmap_scaled("next.png", 16, 16),
+            "shuffle": pixmap_scaled("shuffle.png", 16, 16),
+            "repeat": pixmap_scaled("repeat.png", 16, 16),
+            "vol_on": pixmap_scaled("speaker.png", 16, 16),
+            "vol_off": pixmap_scaled("speaker-mute.png", 16, 16),
+        }
+    return _ICO
 
 
 class ClickableSlider(QSlider):
@@ -98,6 +118,19 @@ class ClickableSlider(QSlider):
         self.setValue(val)
 
 
+def _icon_btn(pm: QPixmap, size: int = 32) -> QPushButton:
+    """Create a transparent button with a pixmap icon."""
+    btn = QPushButton()
+    btn.setFixedSize(size, size)
+    btn.setIcon(pm)
+    btn.setIconSize(pm.size())
+    btn.setStyleSheet(
+        f"QPushButton{{background:transparent;border:none;}}"
+        f"QPushButton:hover{{background:rgba(79,195,247,0.12);border-radius:{size//2}px;}}"
+    )
+    return btn
+
+
 class PlayerBar(QWidget):
     """Bottom dock — now-playing | transport + progress | extras."""
 
@@ -127,12 +160,12 @@ class PlayerBar(QWidget):
         left = QHBoxLayout()
         left.setSpacing(12)
 
-        self.artwork_mini = QLabel("🎵")
+        self.artwork_mini = QLabel()
         self.artwork_mini.setFixedSize(44, 44)
         self.artwork_mini.setAlignment(Qt.AlignCenter)
         self.artwork_mini.setStyleSheet(
             "background:radial-gradient(circle at 35% 30%, #2E4A7D, #101B33 70%);"
-            "border-radius:10px;font-size:20px;"
+            "border-radius:10px;"
         )
         left.addWidget(self.artwork_mini)
 
@@ -161,40 +194,33 @@ class PlayerBar(QWidget):
         btn_row.setAlignment(Qt.AlignCenter)
         btn_row.setSpacing(8)
 
-        self.shuffle_btn = QPushButton("🔀")
+        self.shuffle_btn = _icon_btn(_ico()["shuffle"])
         self.shuffle_btn.setCheckable(True)
-        self.shuffle_btn.setFixedSize(32, 32)
-        self.shuffle_btn.setStyleSheet(self._btn_qss())
         self.shuffle_btn.clicked.connect(self._on_shuffle)
         btn_row.addWidget(self.shuffle_btn)
 
-        self.prev_btn = QPushButton("⏮")
-        self.prev_btn.setFixedSize(32, 32)
-        self.prev_btn.setStyleSheet(self._btn_qss())
+        self.prev_btn = _icon_btn(_ico()["prev"])
         self.prev_btn.clicked.connect(self.prev_requested.emit)
         btn_row.addWidget(self.prev_btn)
 
-        self.play_btn = QPushButton("▶")
+        self.play_btn = QPushButton()
         self.play_btn.setFixedSize(36, 36)
+        self.play_btn.setIcon(_ico()["play"])
+        self.play_btn.setIconSize(_ico()["play"].size())
         self.play_btn.setStyleSheet(
-            self._btn_qss() +
-            f"QPushButton{{font-size:18px;background:{Color.ACCENT};"
-            f"border-radius:18px;color:#fff;}}"
+            f"QPushButton{{background:{Color.ACCENT};border:none;"
+            f"border-radius:18px;}}"
             f"QPushButton:hover{{background:{Color.PRIMARY};}}"
         )
         self.play_btn.clicked.connect(self._toggle_play)
         btn_row.addWidget(self.play_btn)
 
-        self.next_btn = QPushButton("⏭")
-        self.next_btn.setFixedSize(32, 32)
-        self.next_btn.setStyleSheet(self._btn_qss())
+        self.next_btn = _icon_btn(_ico()["next"])
         self.next_btn.clicked.connect(self.next_requested.emit)
         btn_row.addWidget(self.next_btn)
 
-        self.repeat_btn = QPushButton("🔁")
+        self.repeat_btn = _icon_btn(_ico()["repeat"])
         self.repeat_btn.setCheckable(True)
-        self.repeat_btn.setFixedSize(32, 32)
-        self.repeat_btn.setStyleSheet(self._btn_qss())
         self.repeat_btn.clicked.connect(self._on_repeat)
         btn_row.addWidget(self.repeat_btn)
 
@@ -232,19 +258,12 @@ class PlayerBar(QWidget):
         right.setAlignment(Qt.AlignRight)
         right.setSpacing(12)
 
-        self.like_btn = QPushButton("♡")
+        self.like_btn = _icon_btn(pixmap_scaled("mixer.png", 16, 16))
         self.like_btn.setFixedSize(32, 32)
-        self.like_btn.setStyleSheet(
-            self._btn_qss() +
-            f"QPushButton{{font-size:16px;}}"
-            f"QPushButton:checked{{color:{Color.ACCENT_SECONDARY};}}"
-        )
         self.like_btn.setCheckable(True)
         right.addWidget(self.like_btn)
 
-        self.vol_btn = QPushButton("🔊")
-        self.vol_btn.setFixedSize(32, 32)
-        self.vol_btn.setStyleSheet(self._btn_qss())
+        self.vol_btn = _icon_btn(_ico()["vol_on"])
         self.vol_btn.clicked.connect(self._toggle_mute)
         right.addWidget(self.vol_btn)
 
@@ -268,16 +287,6 @@ class PlayerBar(QWidget):
         self._muted = False
         self._last_vol = 70
 
-    # ── Button QSS factory ──────────────────────────────────────────
-
-    def _btn_qss(self) -> str:
-        return (
-            f"QPushButton{{background:transparent;border:none;"
-            f"color:{Color.TEXT_DIM};font-size:14px;}}"
-            f"QPushButton:hover{{color:{Color.ACCENT};}}"
-            f"QPushButton:checked{{color:{Color.ACCENT};}}"
-        )
-
     # ── Engine binding ──────────────────────────────────────────────
 
     def bind_engine(self, engine: PlayerEngine) -> None:
@@ -291,28 +300,24 @@ class PlayerBar(QWidget):
         self.track_title.setText(title or "No track")
         self.track_artist.setText(artist or "-")
         if artwork:
-            self.artwork_mini.setText("")
             self.artwork_mini.setPixmap(
                 artwork.scaled(44, 44, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             )
         else:
             self.artwork_mini.clear()
-            self.artwork_mini.setText("🎵")
 
     def set_playing(self, playing: bool) -> None:
         self._is_playing = playing
-        self.play_btn.setText("⏸" if playing else "▶")
-        self.play_btn.setStyleSheet(
-            self._btn_qss() +
-            f"QPushButton{{font-size:18px;background:{Color.ACCENT};"
-            f"border-radius:18px;color:#fff;}}"
-            f"QPushButton:hover{{background:{Color.PRIMARY};}}"
-        )
+        ico = _ico()["pause"] if playing else _ico()["play"]
+        self.play_btn.setIcon(ico)
+        self.play_btn.setIconSize(ico.size())
 
     def set_volume(self, volume: int) -> None:
         self._last_vol = volume
         self._muted = volume == 0
-        self.vol_btn.setText("🔇" if self._muted else "🔊")
+        ico = _ico()["vol_off"] if self._muted else _ico()["vol_on"]
+        self.vol_btn.setIcon(ico)
+        self.vol_btn.setIconSize(ico.size())
 
     def set_eq_preset(self, name: str) -> None:
         self.eq_label.setText(f"EQ: {name}")
@@ -321,7 +326,6 @@ class PlayerBar(QWidget):
 
     def _toggle_play(self) -> None:
         self.play_toggled.emit()
-        # Engine might be null if called before bind — no-op
         if self._engine:
             self._engine.toggle_play()
 
@@ -330,7 +334,9 @@ class PlayerBar(QWidget):
             return
         self._muted = not self._muted
         self._engine.volume = 0 if self._muted else self._last_vol
-        self.vol_btn.setText("🔇" if self._muted else "🔊")
+        ico = _ico()["vol_off"] if self._muted else _ico()["vol_on"]
+        self.vol_btn.setIcon(ico)
+        self.vol_btn.setIconSize(ico.size())
 
     def _on_seek(self, position: int) -> None:
         if self._engine:
@@ -343,10 +349,12 @@ class PlayerBar(QWidget):
         if not self._engine:
             return
         mode = self._engine.cycle_repeat()
-        icons = {"off": "🔁", "one": "🔂", "all": "🔁"}
-        self.repeat_btn.setText(icons.get(mode, "🔁"))
-        accent = Color.ACCENT if mode != "off" else Color.TEXT_DIM
-        self.repeat_btn.setStyleSheet(self._btn_qss().replace(Color.TEXT_DIM, accent))
+        self.repeat_btn.setStyleSheet(
+            "QPushButton{background:transparent;border:none;}"
+            "QPushButton:hover{background:rgba(79,195,247,0.12);border-radius:16px;}"
+        )
+        self.repeat_btn.setIcon(_ico()["repeat"])
+        self.repeat_btn.setIconSize(_ico()["repeat"].size())
         self.repeat_btn.setChecked(mode != "off")
 
     def _poll(self) -> None:
@@ -367,4 +375,6 @@ class PlayerBar(QWidget):
         playing = self._engine.is_playing
         if playing != self._is_playing:
             self._is_playing = playing
-            self.play_btn.setText("⏸" if playing else "▶")
+            ico = _ico()["pause"] if playing else _ico()["play"]
+            self.play_btn.setIcon(ico)
+            self.play_btn.setIconSize(ico.size())

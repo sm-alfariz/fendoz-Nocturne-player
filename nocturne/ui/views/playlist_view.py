@@ -25,6 +25,7 @@ from nocturne.common.signal_bus import signalBus
 from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
 from nocturne.ui.common import TITLE_STYLE
+from nocturne.ui.icon_utils import pixmap
 
 
 class PlaylistDetail(QWidget):
@@ -94,8 +95,10 @@ class PlaylistDetail(QWidget):
         self._suppress_reorder = True
         self.track_list.clear()
         for t in self._tracks:
-            prefix = "🌐 " if t.source_type == "soundcloud" else ""
-            item = QListWidgetItem(f"{prefix}{t.title or '?'}  —  {t.artist or '?'}")
+            item = QListWidgetItem(f"{t.title or '?'}  —  {t.artist or '?'}")
+            if t.source_type == "soundcloud":
+                from PySide6.QtGui import QIcon
+                item.setIcon(QIcon(str(pixmap("soundcloud.png"))))
             item.setData(Qt.UserRole, t.id)
             self.track_list.addItem(item)
         self._suppress_reorder = False
