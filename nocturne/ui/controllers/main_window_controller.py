@@ -73,6 +73,13 @@ class MainWindowController(Controller):
             pcm_source=self.player_engine.pcm_data, parent=self
         )
 
+        # Poll timer — detects VLC auto-advance when events are unreliable
+        if self._vlc_backend:
+            self._poll_timer = QTimer(self)
+            self._poll_timer.setInterval(1000)
+            self._poll_timer.timeout.connect(self._poll_vlc_track)
+            self._poll_timer.start()
+
         self._current_track: Optional[Track] = None
         self._music_folders: list[Path] = []
         self._playback_queue: list[Track] = []
@@ -213,11 +220,25 @@ class MainWindowController(Controller):
     def _sync_current_track(self) -> None:
         """Called on end-of-track: sync UI with VLC's auto-advanced track."""
         if self._vlc_backend:
-            # VLC auto-advances audio but MediaPlayerMediaChanged is unreliable.
-            # Sync UI directly from VLC's current list index.
             self._on_vlc_media_changed()
             return
         self._navigate(1)
+
+    def _poll_vlc_track(self) -> None:
+        """Poll VLC to detect auto-advance when events are unreliable."""
+        if not self._vlc_backend or not self._playback_queue:
+            return
+        idx = self.player_engine.list_index
+        if idx < 0:
+            return
+        # Check if VLC has advanced to a different track than what we track
+        if 0 <= idx < len(self._playback_queue):
+            track = self._playback_queue[idx]
+            if track != self._current_track:
+                self._save_lyrics_offset_for_current()
+                self._current_track = track
+                self.player_engine.save_state()
+                self._on_track_changed(track)
 
     def _on_vlc_media_changed(self) -> None:
         """VLC list player advanced — sync current track and UI."""
