@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-miniplayer.py — Collapsible frameless miniplayer matching mockup design.
+miniplayer.py - Collapsible frameless miniplayer matching mockup design.
 Compact bar + expandable body with animated visualizer, full controls, volume.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QColor, QFontMetrics, QLinearGradient, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget, QSlider,
 )
@@ -32,8 +32,59 @@ W = 360
 RADIUS = 16
 
 
+class _MarqueeLabel(QWidget):
+    """Scrolling marquee when text overflows."""
+
+    def __init__(self, text="", parent=None) -> None:
+        super().__init__(parent)
+        self._text = text
+        self._offset = 0
+        self._timer = QTimer(self)
+        self._timer.setInterval(30)
+        self._timer.timeout.connect(self._tick)
+
+    def setText(self, text: str) -> None:
+        self._text = text
+        self._offset = 0
+        self._timer.stop()
+        self.update()
+        fm = QFontMetrics(self.font())
+        if fm.horizontalAdvance(text) > self.width():
+            self._timer.start()
+
+    def text(self) -> str:
+        return self._text
+
+    def _tick(self) -> None:
+        fm = QFontMetrics(self.font())
+        tw = fm.horizontalAdvance(self._text)
+        if tw <= self.width():
+            self._timer.stop()
+            return
+        self._offset -= 1
+        gap_px = int(fm.horizontalAdvance(" ") * 3)
+        if self._offset < -(tw + gap_px):
+            self._offset = 0
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        fm = QFontMetrics(self.font())
+        tw = fm.horizontalAdvance(self._text)
+        if tw <= self.width():
+            p.drawText(self.rect(), Qt.AlignVCenter | Qt.AlignLeft, self._text)
+            return
+        p.setClipRect(self.rect())
+        y = self.rect().center().y() + fm.ascent() // 2
+        gap_px = int(fm.horizontalAdvance(" ") * 3)
+        p.drawText(self._offset, y, self._text)
+        p.drawText(self._offset + tw + gap_px, y, self._text)
+        p.end()
+
+
 class _VisualizerBars(QWidget):
-    """Animated visualizer bars matching mockup — painted via QPainter."""
+    """Animated visualizer bars matching mockup, painted via QPainter."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -99,9 +150,7 @@ class _RoundedWidget(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         path = self._rounded_path()
-        # Fill
         p.fillPath(path, QColor(Color.CARD))
-        # Border
         p.setPen(QColor(Color.BORDER))
         p.drawPath(path)
 
@@ -124,12 +173,12 @@ class MiniPlayer(_RoundedWidget):
         )
         self.setFixedWidth(W)
 
-        # ── Root layout ──────────────────────────────────────────────
+        # Root layout
         root = QVBoxLayout(self)
         root.setContentsMargins(1, 1, 1, 1)
         root.setSpacing(0)
 
-        # ── Compact bar (always visible) ──────────────────────────────
+        # Compact bar (always visible)
         self.bar = QWidget()
         self.bar.setFixedHeight(74)
         self.bar.setStyleSheet("background:transparent;")
@@ -138,7 +187,7 @@ class MiniPlayer(_RoundedWidget):
         bar_layout.setSpacing(10)
 
         # Artwork
-        self.artwork = QLabel("🎵")
+        self.artwork = QLabel("\U0001f3b5")
         self.artwork.setFixedSize(44, 44)
         self.artwork.setAlignment(Qt.AlignCenter)
         self.artwork.setStyleSheet(
@@ -150,7 +199,7 @@ class MiniPlayer(_RoundedWidget):
         # Meta column
         meta = QVBoxLayout()
         meta.setSpacing(1)
-        self.title_label = QLabel("No track")
+        self.title_label = _MarqueeLabel("No track")
         self.title_label.setStyleSheet(
             f"color:{Color.TEXT_PRIMARY};font-weight:{FontWeights.BODY_SEMIBOLD};"
             f"font-size:13px;background:transparent;"
@@ -219,7 +268,7 @@ class MiniPlayer(_RoundedWidget):
 
         root.addWidget(self.bar)
 
-        # ── Expanded body ────────────────────────────────────────────
+        # Expanded body
         self.body = QWidget()
         self.body.setStyleSheet("background:transparent;")
         body_layout = QVBoxLayout(self.body)
@@ -283,7 +332,7 @@ class MiniPlayer(_RoundedWidget):
         ctrl_row.setSpacing(22)
         ctrl_row.setContentsMargins(0, 18, 0, 4)
 
-        self.shuffle_btn = self._side_btn("🔀")
+        self.shuffle_btn = self._side_btn("\U0001f500")
         ctrl_row.addWidget(self.shuffle_btn)
 
         self.exp_prev = self._side_btn("⏮")
@@ -302,7 +351,7 @@ class MiniPlayer(_RoundedWidget):
         self.exp_next = self._side_btn("⏭")
         ctrl_row.addWidget(self.exp_next)
 
-        self.repeat_btn = self._side_btn("🔁")
+        self.repeat_btn = self._side_btn("\U0001f501")
         ctrl_row.addWidget(self.repeat_btn)
 
         body_layout.addLayout(ctrl_row)
@@ -311,7 +360,7 @@ class MiniPlayer(_RoundedWidget):
         vol_row = QHBoxLayout()
         vol_row.setContentsMargins(0, 18, 0, 0)
         vol_row.setSpacing(10)
-        self.vol_icon = QLabel("🔊")
+        self.vol_icon = QLabel("\U0001f50a")
         self.vol_icon.setFixedSize(20, 20)
         self.vol_icon.setStyleSheet(
             f"color:{Color.TEXT_DIM};font-size:14px;background:transparent;"
@@ -359,7 +408,7 @@ class MiniPlayer(_RoundedWidget):
 
         root.addWidget(self.body)
 
-        # ── Close button (overlay, top-right) ────────────────────────
+        # Close button (overlay, top-right)
         self.close_btn = QPushButton("✕", self)
         self.close_btn.setFixedSize(24, 24)
         self.close_btn.setStyleSheet(
@@ -370,22 +419,22 @@ class MiniPlayer(_RoundedWidget):
         )
         self.close_btn.clicked.connect(self._do_close)
 
-        # ── Start collapsed ───────────────────────────────────────────
+        # Start collapsed
         self.body.setVisible(False)
         self.setFixedHeight(COMPACT_H)
 
-        # ── Signals ───────────────────────────────────────────────────
+        # Signals
         self.expand_btn.clicked.connect(self._toggle_expand)
         self.exp_prev.clicked.connect(self.prev_requested.emit)
         self.exp_next.clicked.connect(self.next_requested.emit)
 
-        # ── Poll timer ────────────────────────────────────────────────
+        # Poll timer
         self._timer = QTimer(self)
         self._timer.setInterval(300)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
 
-    # ── Helpers ──────────────────────────────────────────────────────
+    # Helpers
 
     def _icon_btn(self, text: str, w: int, h: int) -> QPushButton:
         btn = QPushButton(text)
@@ -417,7 +466,7 @@ class MiniPlayer(_RoundedWidget):
         )
         return btn
 
-    # ── Public API ──────────────────────────────────────────────────
+    # Public API
 
     def update_track_info(
         self, title: str, artist: str, artwork: QPixmap | None = None
@@ -433,7 +482,7 @@ class MiniPlayer(_RoundedWidget):
             )
         else:
             self.artwork.clear()
-            self.artwork.setText("🎵")
+            self.artwork.setText("\U0001f3b5")
 
     def set_playing(self, playing: bool) -> None:
         self._is_playing = playing
@@ -441,7 +490,7 @@ class MiniPlayer(_RoundedWidget):
         self.play_btn.setText(txt)
         self.exp_play.setText(txt)
 
-    # ── Internals ───────────────────────────────────────────────────
+    # Internals
 
     def _toggle_play(self) -> None:
         self.play_toggled.emit()
@@ -459,24 +508,19 @@ class MiniPlayer(_RoundedWidget):
         pos = self._engine.position_ms
         dur = self._engine.duration_ms
 
-        # Compact progress bar
         ratio = pos / max(dur, 1)
         cw = self.compact_progress.width()
         self.compact_fill.setFixedWidth(int(cw * ratio))
 
-        # Compact time
         self.compact_time.setText(_fmt_ms(pos))
         self.compact_duration.setText(_fmt_ms(dur))
 
-        # Expanded time
         self.exp_time.setText(_fmt_ms(pos))
         self.exp_duration.setText(_fmt_ms(dur))
 
-        # Expanded scrubber
         sw = self.scrub_track.width()
         self.scrub_fill.setFixedWidth(int(sw * ratio))
 
-        # Play state sync
         playing = self._engine.is_playing
         if playing != self._is_playing:
             self._is_playing = playing
@@ -490,7 +534,6 @@ class MiniPlayer(_RoundedWidget):
         h = EXPANDED_H if self._expanded else COMPACT_H
         self.setFixedHeight(h)
         self.update()
-        # Re-center
         from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
@@ -501,14 +544,11 @@ class MiniPlayer(_RoundedWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        # Reposition close button to top-right
         self.close_btn.move(self.width() - self.close_btn.width() - 6, 6)
-        # Update compact progress fill width
         cw = self.compact_progress.width()
         if self._engine:
             ratio = self._engine.position_ms / max(self._engine.duration_ms, 1)
             self.compact_fill.setFixedWidth(int(cw * ratio))
-        # Update scrub fill
         sw = self.scrub_track.width()
         if self._engine:
             ratio = self._engine.position_ms / max(self._engine.duration_ms, 1)
