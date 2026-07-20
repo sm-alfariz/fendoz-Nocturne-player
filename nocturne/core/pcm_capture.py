@@ -1,10 +1,10 @@
 # coding:utf-8
 """
-pcm_capture.py — PCM ring buffer capturing live audio output via PulseAudio monitor.
+pcm_capture.py — PCM ring buffer capturing live audio output.
 
-Uses `parec` subprocess from the default monitor source so the FFT visualizer
-reacts to whatever audio is playing — VLC, browser, system sounds.
-Falls back to synthetic data when no monitor source is available.
+Linux: PulseAudio monitor via `parec` subprocess.
+Windows: WASAPI loopback via `pyaudiowpatch` (optional dependency).
+Falls back to synthetic data when no capture method is available.
 """
 
 from __future__ import annotations
@@ -89,9 +89,18 @@ class PCMCapture:
             self._buffer.clear()
 
     def _run(self) -> None:
-        src = self._resolve_monitor()
-        if src:
-            self._capture_parec(src)
+        import platform
+        system = platform.system()
+        if system == "Linux":
+            src = self._resolve_monitor()
+            if src:
+                self._capture_parec(src)
+            else:
+                self._push_synthetic()
+        elif system == "Windows":
+            if self._capture_wasapi():
+                return
+            self._push_synthetic()
         else:
             self._push_synthetic()
 
@@ -135,6 +144,66 @@ class PCMCapture:
                 logger.exception("parec read error, falling back to synthetic")
                 break
         self._push_synthetic()
+
+    def _capture_wasapi(self) -> bool:
+        """Capture system audio via WASAPI loopback on Windows. Returns True if successful."""
+        try:
+            import pyaudiowpatch as pyaudio
+        except ImportError:
+            logger.info("pyaudiowpatch not installed, install with: pip install pyaudiowpatch")
+            return False
+
+        try:
+            p = pyaudio.PyAudio()
+            # Find default loopback device
+            wasapi_info = p.get_host_api_info_by_type(pyaudio.paWASAPI)
+            default_speakers = p.get_device_info_by_index(wasapi_info["defaultOutputDevice"])
+
+            if not default_speakers["isLoopbackDevice"]:
+                loopback = p.get_loopback_device_info_by_index(default_speakers["index"])
+            else:
+                loopback = default_speakers
+
+            logger.info("WASAPI loopback: %s", loopback["name"])
+
+            stream = p.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=self._rate,
+                input=True,
+                input_device_index=loopback["index"],
+                frames_per_buffer=1024,
+            )
+        except Exception as e:
+            logger.warning("WASAPI loopback failed: %s", e)
+            try:
+                p.terminate()
+            except Exception:
+                pass
+            return False
+
+        t = 0
+        while self._running:
+            t += 1
+            try:
+                raw = stream.read(1024, exception_on_overflow=False)
+                samples = np.frombuffer(raw, dtype=np.int16).astype(np.float64) / 32768.0
+                samples = np.clip(samples, -1.0, 1.0)
+
+                synth = _synthetic_frame(t)
+                mixed = samples * 0.7 + synth * 0.3
+
+                with self._lock:
+                    self._buffer.extend(mixed.tolist())
+            except Exception:
+                logger.exception("WASAPI read error, falling back to synthetic")
+                break
+
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        self._push_synthetic()
+        return True
 
     def _push_synthetic(self) -> None:
         """Idle animation — IFFT-based so spectrum varies per frame."""

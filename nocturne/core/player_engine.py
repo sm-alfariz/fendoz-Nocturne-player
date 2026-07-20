@@ -12,7 +12,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-import vlc
 
 from nocturne.data.db import get_db_path
 from nocturne.core.pcm_capture import PCMCapture
@@ -24,6 +23,10 @@ class PlayerEngine:
     _STATE_FILE = "playback_state.json"
 
     def __init__(self) -> None:
+        import vlc as _vlc
+        global vlc
+        vlc = _vlc
+
         import platform
         vlc_args = []
         if platform.system() == "Linux":

@@ -8,9 +8,10 @@ FR-3.1–3.4: ±12dB per band, presets, real-time without audio pop.
 from __future__ import annotations
 
 import json
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-import vlc
+if TYPE_CHECKING:
+    import vlc
 
 from nocturne.data.db import get_connection
 
@@ -59,6 +60,7 @@ class Equalizer:
         else:
             return
 
+        import vlc
         self._eq = vlc.AudioEqualizer()
 
         for band_idx in range(BAND_COUNT):

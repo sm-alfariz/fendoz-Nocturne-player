@@ -18,7 +18,6 @@ from nocturne.data.db import get_connection
 from nocturne.data.library_scanner import ScanWorker
 from nocturne.data.models import Track
 from nocturne.config.config import PlayerBackend, cfg
-from nocturne.core.player_engine import PlayerEngine as VLCPlayerEngine
 from nocturne.core.qt_player_engine import QtPlayerEngine
 from nocturne.core.equalizer import Equalizer
 from nocturne.core.audio_worker import AudioWorker
@@ -54,6 +53,7 @@ class MainWindowController(Controller):
         # ── Engine layer ──────────────────────────────────────────────
         self._vlc_backend = cfg.get(cfg.playerBackend) == PlayerBackend.VLC
         if self._vlc_backend:
+            from nocturne.core.player_engine import PlayerEngine as VLCPlayerEngine
             self.player_engine = VLCPlayerEngine()
             self.equalizer = Equalizer(self.player_engine._instance)
             self.equalizer.apply_preset("Flat")
@@ -291,8 +291,7 @@ class MainWindowController(Controller):
         ).fetchone()
         if not row:
             # file not in library — load standalone, no queue
-            import ntpath
-            title = ntpath.splitext(ntpath.basename(path))[0]
+            title = Path(path).stem
             track = Track(path=path, title=title)
             self._current_track = track
             self.player_engine.load_single(track.path)
