@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "graphify": {
+      "command": "python3",
+      "args": [".claude/graphify/mcp_server.py"],
+      "cwd": "/home/fendoz/dev/fendoz-Nocturne-player"
+    }
+  }
+}

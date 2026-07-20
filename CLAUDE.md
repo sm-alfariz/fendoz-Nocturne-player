@@ -104,3 +104,43 @@ Full requirements spec in 14 markdown files. Key IDs: FR-1.x (playback), FR-2.x 
 - FR-6.x: SoundCloud integration not wired (Fase 2)
 - FR-5.2: Online lyrics lookup not implemented (Fase 2)
 - Tray: Wayland support depends on compositor — may need `qt6-wayland` or fallback to no-tray mode
+
+## graphify
+
+This project has a knowledge graph at `graphify-out/` with god nodes, community structure, and cross-file relationships. **Use the graph before reading source files** — it's faster and uses fewer tokens.
+
+### MCP Server (preferred for agents)
+
+A graphify MCP server is configured in `.mcp.json`. Available tools:
+- `graphify_query` — BFS traversal for codebase questions
+- `graphify_explain` — plain-language explanation of a concept
+- `graphify_path` — shortest path between two concepts
+- `graphify_affected` — what would break if I change X
+
+**Use these MCP tools instead of Bash `graphify` CLI when available.**
+
+### Query commands (Bash fallback)
+
+```bash
+graphify query "how does playback work"     # BFS traversal
+graphify path "PlayerEngine" "LyricsPanel"  # shortest path
+graphify explain "MainWindowController"     # node explanation
+graphify affected "Track"                   # impact analysis
+graphify update .                           # rebuild after code changes
+```
+
+### When to use graph vs source
+
+| Use graph for | Use source for |
+|---|---|
+| "How does X work?" | Reading a specific function's implementation |
+| "What calls X?" | Understanding line-by-line logic |
+| "What would break?" | Verifying exact code before editing |
+| Architecture overview | After `graphify update .` confirms no drift |
+
+### Agent rules
+- For codebase questions, **first use graphify MCP tools or `graphify query`**
+- Use `graphify path` for relationships, `graphify explain` for focused concepts
+- Read `GRAPH_REPORT.md` only for broad architecture review
+- After modifying code, run `graphify update .` to keep the graph current
+- Save useful Q&A with `graphify save-result --question "..." --answer "..." --outcome useful`
