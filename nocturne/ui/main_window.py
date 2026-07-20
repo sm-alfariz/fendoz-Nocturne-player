@@ -91,8 +91,7 @@ class TopBar(QWidget):
         super().__init__(parent)
         self.setFixedHeight(52)
         self.setStyleSheet(
-            f"background:rgba(15,23,42,0.6);"
-            f"border-bottom:1px solid {Color.BORDER};"
+            f"background:{Color.BACKGROUND};"
         )
 
         layout = QHBoxLayout(self)
