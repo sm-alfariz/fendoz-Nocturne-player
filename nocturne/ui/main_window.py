@@ -31,7 +31,6 @@ from qfluentwidgets import (
     FluentIcon as FIF,
     NavigationInterface,
     NavigationItemPosition,
-    NavigationAvatarWidget,
 )
 
 from nocturne.config.config import ROOT, cfg
@@ -425,15 +424,6 @@ class MainWindow(QWidget):
             icon=FIF.CLOSE,
             text="Exit",
             onClick=self._quit_app,
-            position=NavigationItemPosition.BOTTOM,
-        )
-        nav.addSeparator()
-        nav.addWidget(
-            routeKey="avatar",
-            widget=NavigationAvatarWidget(
-                "FenDoZ", os.path.join(ROOT, "resource", "img", "icon.png")
-            ),
-            onClick=lambda: None,
             position=NavigationItemPosition.BOTTOM,
         )
 
