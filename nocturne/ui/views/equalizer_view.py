@@ -111,8 +111,17 @@ class EqualizerView(QWidget):
         self.preset_combo.setCurrentText("Custom")
 
     def _save_custom(self) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        from qfluentwidgets import InfoBar
+        name, ok = QInputDialog.getText(self, "Save Preset", "Preset name:")
+        if not ok or not name.strip():
+            return
         values = [s.slider.value() / 10.0 for s in self._sliders]
-        self._eq.save_custom_preset("Custom", values)
+        self._eq.save_custom_preset(name.strip(), values)
+        # Refresh dropdown
+        self.preset_combo.addItem(name.strip())
+        self.preset_combo.setCurrentText(name.strip())
+        InfoBar.success(title="Saved", content=f"Preset \"{name.strip()}\" saved", parent=self, duration=2000)
 
     def _assign_to_track(self) -> None:
         preset = self.preset_combo.currentText()

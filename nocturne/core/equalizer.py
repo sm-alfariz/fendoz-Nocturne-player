@@ -42,6 +42,7 @@ class Equalizer:
         self._instance = player_instance
         self._active = player_instance is not None
         self._eq = None
+        self._player = None  # stored by attach_to_player for re-attachment
         self._current_preset = "Flat"
 
     @property
@@ -68,6 +69,10 @@ class Equalizer:
 
         self._current_preset = name
 
+        # Re-attach to player so the new EQ takes effect immediately
+        if self._player is not None:
+            self._player.set_equalizer(self._eq)
+
     def set_band(self, band_index: int, db_value: float) -> None:
         """Adjust a single band in real-time."""
         if not self._active or not self._eq:
@@ -76,6 +81,7 @@ class Equalizer:
 
     def attach_to_player(self, player) -> None:
         """Attach equalizer to a libVLC media player."""
+        self._player = player
         if not self._active or not self._eq:
             return
         player.set_equalizer(self._eq)

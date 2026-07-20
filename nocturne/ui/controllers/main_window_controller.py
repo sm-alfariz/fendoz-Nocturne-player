@@ -210,9 +210,12 @@ class MainWindowController(Controller):
             self._navigate(-1)
 
     def _sync_current_track(self) -> None:
-        """Called on end-of-track: advance to next (non-VLC fallback)."""
+        """Called on end-of-track: sync UI with VLC's auto-advanced track."""
         if self._vlc_backend:
-            return  # VLC list player auto-advances; _on_vlc_media_changed handles UI
+            # VLC auto-advances audio but MediaPlayerMediaChanged is unreliable.
+            # Sync UI directly from VLC's current list index.
+            self._on_vlc_media_changed()
+            return
         self._navigate(1)
 
     def _on_vlc_media_changed(self) -> None:

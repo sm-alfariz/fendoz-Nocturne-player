@@ -222,7 +222,7 @@ class MainWindow(QWidget):
         ("artists", "Artists", FIF.PEOPLE, "artists"),
         ("albums", "Albums", FIF.ALBUM, "albums"),
         ("playlist", "Playlist", FIF.MUSIC_FOLDER, "playlist"),
-        ("equalizer", "Equalizer", FIF.MIX_VOLUMES, "equalizer"),
+        ("equalizer", "Mixer", QIcon(os.path.join(ROOT, "resource", "img", "mixer.png")), "equalizer"),
         ("settings", "Settings", FIF.SETTING, "settings"),
     ]
 
