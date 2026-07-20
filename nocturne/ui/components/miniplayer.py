@@ -128,8 +128,8 @@ class _VisualizerBars(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
 
-        # Background rounded rect (mockup: bg-card-alt #16213a)
-        bg = QColor(Color.CARD_SOFT)
+        # Background rounded rect (mockup: bg-card-alt #16223b)
+        bg = QColor("#16223b")
         p.setBrush(bg)
         p.setPen(Qt.NoPen)
         p.drawRoundedRect(self.rect(), 10, 10)
