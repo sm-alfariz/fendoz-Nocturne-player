@@ -1,6 +1,6 @@
 [project]
 name = "nocturne"
-version = "0.1.0"
+version = "1.1.0"
 description = "Nocturne — premium offline-first desktop music player"
 readme = "README.md"
 requires-python = ">=3.12"
