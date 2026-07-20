@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget, QSlider,
 )
@@ -71,7 +71,42 @@ class _VisualizerBars(QWidget):
         p.end()
 
 
-class MiniPlayer(QWidget):
+class _RoundedWidget(QWidget):
+    """Base widget that paints its own background + border with per-state corner rounding."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._expanded = False
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+
+    def _rounded_path(self) -> QPainterPath:
+        w, h = self.width(), self.height()
+        r = RADIUS
+        path = QPainterPath()
+        if self._expanded:
+            path.addRoundedRect(0, 0, w, h, r, r)
+        else:
+            path.moveTo(0, r)
+            path.arcTo(0, 0, r * 2, r * 2, 180, -90)
+            path.lineTo(w - r, 0)
+            path.arcTo(w - r * 2, 0, r * 2, r * 2, 90, -90)
+            path.lineTo(w, h)
+            path.lineTo(0, h)
+            path.closeSubpath()
+        return path
+
+    def paintEvent(self, event) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        path = self._rounded_path()
+        # Fill
+        p.fillPath(path, QColor(Color.CARD))
+        # Border
+        p.setPen(QColor(Color.BORDER))
+        p.drawPath(path)
+
+
+class MiniPlayer(_RoundedWidget):
     """Collapsible always-on-top miniplayer. Compact bar + expandable body."""
 
     play_toggled = Signal()
@@ -82,25 +117,21 @@ class MiniPlayer(QWidget):
     def __init__(self, engine: PlayerEngine, parent=None) -> None:
         super().__init__(parent)
         self._engine = engine
-        self._expanded = False
         self._is_playing = False
 
         self.setWindowFlags(
             Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
-        self.setAttribute(Qt.WA_TranslucentBackground, False)
         self.setFixedWidth(W)
-
-        self.setStyleSheet(self._make_qss())
 
         # ── Root layout ──────────────────────────────────────────────
         root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        root.setContentsMargins(1, 1, 1, 1)
         root.setSpacing(0)
 
         # ── Compact bar (always visible) ──────────────────────────────
         self.bar = QWidget()
-        self.bar.setFixedHeight(76)
+        self.bar.setFixedHeight(74)
         self.bar.setStyleSheet("background:transparent;")
         bar_layout = QHBoxLayout(self.bar)
         bar_layout.setContentsMargins(14, 0, 8, 0)
@@ -344,7 +375,6 @@ class MiniPlayer(QWidget):
         self.setFixedHeight(COMPACT_H)
 
         # ── Signals ───────────────────────────────────────────────────
-        self.bar.mousePressEvent = self._toggle_expand  # type: ignore[method-assign]
         self.expand_btn.clicked.connect(self._toggle_expand)
         self.exp_prev.clicked.connect(self.prev_requested.emit)
         self.exp_next.clicked.connect(self.next_requested.emit)
@@ -354,17 +384,6 @@ class MiniPlayer(QWidget):
         self._timer.setInterval(300)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
-
-    # ── Dynamic stylesheet ──────────────────────────────────────────
-
-    def _make_qss(self) -> str:
-        """Top corners only when collapsed; all 4 when expanded."""
-        br = f"{RADIUS}px" if self._expanded else f"{RADIUS}px {RADIUS}px 0 0"
-        return (
-            f"background:{Color.CARD};"
-            f"border:1px solid {Color.BORDER};"
-            f"border-radius:{br};"
-        )
 
     # ── Helpers ──────────────────────────────────────────────────────
 
@@ -470,7 +489,7 @@ class MiniPlayer(QWidget):
         self.body.setVisible(self._expanded)
         h = EXPANDED_H if self._expanded else COMPACT_H
         self.setFixedHeight(h)
-        self.setStyleSheet(self._make_qss())
+        self.update()
         # Re-center
         from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
