@@ -101,7 +101,10 @@ class TopBar(QWidget):
 
         logo_row = QHBoxLayout()
         logo_row.setSpacing(10)
-        logo_row.addWidget(LogoMark(self))
+        logo_icon = QLabel()
+        logo_icon.setFixedSize(30, 30)
+        logo_icon.setPixmap(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")).pixmap(30, 30))
+        logo_row.addWidget(logo_icon)
         logo_text = QLabel("Nocturne")
         logo_text.setStyleSheet(
             f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.LOGO};"
