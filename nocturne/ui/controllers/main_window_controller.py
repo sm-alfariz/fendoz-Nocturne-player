@@ -109,7 +109,9 @@ class MainWindowController(Controller):
         if not tracks or start_index < 0 or start_index >= len(tracks):
             return
         track = tracks[start_index]
-        if not track.path or not Path(track.path).exists():
+        if not track.path:
+            return
+        if track.source_type == "local" and not Path(track.path).exists():
             return
         self._save_lyrics_offset_for_current()
         self._current_track = track

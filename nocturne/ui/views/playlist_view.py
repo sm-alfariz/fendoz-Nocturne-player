@@ -26,6 +26,7 @@ from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
 from nocturne.ui.common import TITLE_STYLE
 from nocturne.ui.icon_utils import pixmap
+from nocturne.ui.theme.tokens import Color
 
 
 class PlaylistDetail(QWidget):
@@ -46,9 +47,12 @@ class PlaylistDetail(QWidget):
         top.addWidget(self.title_label)
         top.addStretch()
 
-        self.add_sc_btn = QPushButton("Add from URL")
+        self.add_sc_btn = QPushButton("Search SoundCloud")
         self.add_sc_btn.setFixedHeight(30)
         self.add_sc_btn.clicked.connect(self._add_soundcloud)
+        from nocturne.config.config import cfg
+        self.add_sc_btn.setVisible(cfg.onlineEnabled.value)
+        cfg.onlineEnabled.valueChanged.connect(self.add_sc_btn.setVisible)
         self.add_btn = QPushButton("Add Track")
         self.add_btn.setFixedHeight(30)
         self.add_btn.clicked.connect(self._add_track)
@@ -95,10 +99,15 @@ class PlaylistDetail(QWidget):
         self._suppress_reorder = True
         self.track_list.clear()
         for t in self._tracks:
-            item = QListWidgetItem(f"{t.title or '?'}  —  {t.artist or '?'}")
             if t.source_type == "soundcloud":
-                from PySide6.QtGui import QIcon
+                label = f"☁ {t.title or '?'}  —  {t.artist or '?'}"
+            else:
+                label = f"{t.title or '?'}  —  {t.artist or '?'}"
+            item = QListWidgetItem(label)
+            if t.source_type == "soundcloud":
+                from PySide6.QtGui import QColor, QIcon
                 item.setIcon(QIcon(str(pixmap("soundcloud.png"))))
+                item.setForeground(QColor(Color.ACCENT))
             item.setData(Qt.UserRole, t.id)
             self.track_list.addItem(item)
         self._suppress_reorder = False
@@ -144,15 +153,14 @@ class PlaylistDetail(QWidget):
         from PySide6.QtWidgets import QDialog
         from nocturne.ui.components.soundcloud_dialog import SoundCloudDialog
         from nocturne.data.db import upsert_sc_track
-        from nocturne.integrations.soundcloud.resolver import get_stream
 
-        dialog = SoundCloudDialog(self)
+        dialog = SoundCloudDialog(self, mode="add")
         if dialog.exec() != QDialog.Accepted:
             return
         pm = PlaylistManager()
         for meta in dialog.tracks:
-            if "stream_url" not in meta:
-                meta["stream_url"] = get_stream(meta.get("source_url", ""))
+            if not meta.get("stream_url"):
+                continue
             track = upsert_sc_track(meta)
             pm.add_track(self._playlist_id, track.id)
         self.load(self._playlist_id)

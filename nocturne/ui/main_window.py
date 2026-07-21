@@ -147,7 +147,9 @@ class TopBar(QWidget):
         self.sc_btn.setFixedSize(36, 36)
         self.sc_btn.setFlat(True)
         self.sc_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
-        self.sc_btn.setToolTip("Add from SoundCloud")
+        self.sc_btn.setToolTip("Search SoundCloud")
+        self.sc_btn.setVisible(cfg.onlineEnabled.value)
+        cfg.onlineEnabled.valueChanged.connect(self.sc_btn.setVisible)
         layout.addWidget(self.sc_btn)
 
 
@@ -476,10 +478,9 @@ class MainWindow(QWidget):
         from PySide6.QtWidgets import QDialog
         from qfluentwidgets import InfoBar
         from nocturne.ui.components.soundcloud_dialog import SoundCloudDialog
-        from nocturne.integrations.soundcloud.resolver import get_stream
         from nocturne.data.db import upsert_sc_track
 
-        dialog = SoundCloudDialog(self)
+        dialog = SoundCloudDialog(self, mode="play")
         if dialog.exec() != QDialog.Accepted:
             return
 
@@ -487,21 +488,17 @@ class MainWindow(QWidget):
         if not tracks_meta:
             return
 
-        first_meta = tracks_meta[0]
-        if "stream_url" not in first_meta:
-            first_meta["stream_url"] = get_stream(
-                first_meta.get("source_url", "")
-            )
-        if not first_meta.get("stream_url"):
-            InfoBar.error(
-                "Playback failed",
-                "Could not get stream URL",
-                parent=self,
-            )
-            return
-
-        track = upsert_sc_track(first_meta)
-        self._play_track(track)
+        for meta in tracks_meta:
+            if not meta.get("stream_url"):
+                InfoBar.warning(
+                    "Skipped track",
+                    f"Could not get stream for: {meta.get('title', '?')}",
+                    parent=self,
+                )
+                continue
+            track = upsert_sc_track(meta)
+            self._play_track(track)
+            break  # play first valid track
 
     # ── Playback ──────────────────────────────────────────────────────
 
