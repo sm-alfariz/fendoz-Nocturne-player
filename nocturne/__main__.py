@@ -10,6 +10,7 @@ import os
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
+from PySide6.QtGui import QIcon
 
 from nocturne.utils.crash_handler import install_crash_handler
 install_crash_handler()
@@ -37,7 +38,7 @@ def _qt_msg_handler(msg_type, context, msg):
 
 qInstallMessageHandler(_qt_msg_handler)
 
-from nocturne.config.config import cfg  # noqa: E402
+from nocturne.config.config import cfg, ROOT  # noqa: E402
 
 if cfg.get(cfg.dpiScale) != "Auto":
     os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
@@ -47,6 +48,7 @@ app = QApplication(sys.argv)
 app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 app.setQuitOnLastWindowClosed(False)
 app.aboutToQuit.connect(lambda: sys.stderr.write("aboutToQuit fired\n"))
+app.setWindowIcon(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")))
 
 # Force dark theme before any widgets are created
 from qfluentwidgets import setTheme, Theme  # noqa: E402
