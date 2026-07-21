@@ -5,12 +5,17 @@ songs_view.py — Sortable / filterable list of all scanned tracks.
 
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, Signal
-from PySide6.QtWidgets import QLabel, QTableView, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QLabel, QMenu, QTableView, QVBoxLayout, QWidget
 from qfluentwidgets import SearchLineEdit
 
 from nocturne.data.models import Track
 from nocturne.ui.theme.tokens import Color
+from nocturne.common.signal_bus import signalBus
+
+from nocturne.ui.components.tag_editor import TagEditorDialog
 
 
 class SongTableModel(QAbstractTableModel):
@@ -109,6 +114,8 @@ class SongsView(QWidget):
         self.table.setSelectionBehavior(QTableView.SelectRows)
         self.table.setSelectionMode(QTableView.SingleSelection)
         self.table.doubleClicked.connect(self._on_double_click)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._on_context_menu)
         self.table.setStyleSheet(
             f"QTableView{{background:{Color.CARD};border:1px solid {Color.BORDER};"
             f"border-radius:8px;color:{Color.TEXT_PRIMARY};gridline-color:transparent;}}"
@@ -143,3 +150,45 @@ class SongsView(QWidget):
         source_index = self.proxy.mapToSource(index)
         track = self.model.track_at(source_index.row())
         self.track_activated.emit(track)
+
+    def _on_context_menu(self, pos) -> None:
+        index = self.table.indexAt(pos)
+        if not index or not index.isValid():
+            return
+        source_index = self.proxy.mapToSource(index)
+        track = self.model.track_at(source_index.row())
+
+        menu = QMenu(self.table)
+        menu.setStyleSheet(
+            f"QMenu{{background:{Color.CARD};border:1px solid {Color.BORDER};"
+            f"border-radius:8px;padding:6px;color:{Color.TEXT_PRIMARY};}}"
+            f"QMenu::item{{padding:6px 24px;border-radius:4px;}}"
+            f"QMenu::item:selected{{background:{Color.ACCENT};color:#fff;}}"
+        )
+        action = menu.addAction("✎ Edit MP3 Tag")
+        action.triggered.connect(lambda: self._edit_tags(track))
+        menu.exec(self.table.viewport().mapToGlobal(pos))
+
+    def _edit_tags(self, track: Track) -> None:
+        if not track.path or not os.path.isfile(track.path):
+            return
+        dialog = TagEditorDialog(track.path, self.window())
+        if dialog.exec() != QDialog.Accepted:
+            return
+
+        # Update DB row so app reflects changes immediately
+        from nocturne.data.db import get_connection
+        conn = get_connection()
+        conn.execute(
+            "UPDATE tracks SET title=?, artist=? WHERE path=?",
+            (dialog.edited_title, dialog.edited_artist, track.path),
+        )
+        conn.commit()
+
+        # Refresh view
+        from nocturne.ui.controllers.songs_controller import SongsController
+        refreshed = SongsController().load_tracks()
+        self.load(refreshed)
+
+        # Notify MainWindow so album/artist views can refresh too
+        signalBus.tags_edited.emit()

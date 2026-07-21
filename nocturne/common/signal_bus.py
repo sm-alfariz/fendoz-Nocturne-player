@@ -19,6 +19,7 @@ class SignalBus(QObject):
     play_toggled = Signal(bool)
     reduce_motion_changed = Signal(bool)
     playlist_changed = Signal()
+    tags_edited = Signal()
 
 
 signalBus = SignalBus()

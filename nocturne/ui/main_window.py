@@ -311,6 +311,7 @@ class MainWindow(QWidget):
         signalBus.scan_started.connect(self._scan_library)
         signalBus.reduce_motion_changed.connect(self.stage.ring.set_reduce_motion)
         signalBus.playlist_changed.connect(self._rebuild_playlist_nav)
+        signalBus.tags_edited.connect(self._refresh_after_tags_edit)
 
         # ── Controller connections ────────────────────────────────────
         self.ctrl.track_changed.connect(self._on_track_changed)
@@ -622,6 +623,19 @@ class MainWindow(QWidget):
         playlist_view = self._pages.get("playlist")
         if hasattr(playlist_view, "load"):
             playlist_view.load()
+
+    def _refresh_after_tags_edit(self) -> None:
+        songs = self._pages.get("songs")
+        if isinstance(songs, SongsView):
+            songs.load(self.ctrl.songs.load_tracks())
+
+        artists = self._pages.get("artists")
+        if isinstance(artists, ArtistsView):
+            artists.load(self.ctrl.artists.load_artists())
+
+        albums = self._pages.get("albums")
+        if isinstance(albums, AlbumsView):
+            albums.load(self.ctrl.albums.load_albums())
 
     # ── Playback lifecycle ────────────────────────────────────────────
 
