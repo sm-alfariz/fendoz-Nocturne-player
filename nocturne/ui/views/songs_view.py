@@ -167,7 +167,29 @@ class SongsView(QWidget):
         )
         action = menu.addAction("✎ Edit MP3 Tag")
         action.triggered.connect(lambda: self._edit_tags(track))
+        remove_action = menu.addAction("✕ Remove from library")
+        remove_action.triggered.connect(lambda: self._remove_track(track))
         menu.exec(self.table.viewport().mapToGlobal(pos))
+
+    def _remove_track(self, track: Track) -> None:
+        from qfluentwidgets import MessageBox
+        box = MessageBox(
+            "Remove from library",
+            f"Remove \"{track.title}\" from the library?\n"
+            "The file will NOT be deleted.",
+            self,
+        )
+        if box.exec() != MessageBox.Accepted:
+            return
+        from nocturne.data.db import get_connection
+        conn = get_connection()
+        conn.execute("DELETE FROM tracks WHERE id = ?", (track.id,))
+        conn.commit()
+        # Refresh view
+        from nocturne.ui.controllers.songs_controller import SongsController
+        refreshed = SongsController().load_tracks()
+        self.load(refreshed)
+        signalBus.tags_edited.emit()
 
     def _edit_tags(self, track: Track) -> None:
         if not track.path or not os.path.isfile(track.path):
