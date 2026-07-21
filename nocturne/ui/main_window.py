@@ -562,7 +562,7 @@ class MainWindow(QWidget):
                 if p.loadFromData(row[0]):
                     pix = p
 
-        if not pix and track.path:
+        if not pix and track.path and track.source_type == "local":
             # fallback: read artwork directly from file
             try:
                 from mutagen import File as MutagenFile
