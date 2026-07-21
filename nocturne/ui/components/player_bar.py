@@ -153,7 +153,7 @@ class PlayerBar(QWidget):
 
         self._is_playing = False
         self._muted = False
-        self._last_vol = 70
+        self._last_vol = 100
 
         # ── Layout ──────────────────────────────────────────────────────
         layout = QHBoxLayout(self)
@@ -272,7 +272,7 @@ class PlayerBar(QWidget):
         right.addWidget(self.vol_btn)
 
         self.vol_slider = QSlider(Qt.Horizontal)
-        self.vol_slider.setRange(0, 100)
+        self.vol_slider.setRange(0, 200)
         self.vol_slider.setValue(self._last_vol)
         self.vol_slider.setFixedWidth(80)
         self.vol_slider.valueChanged.connect(self._on_volume_changed)
