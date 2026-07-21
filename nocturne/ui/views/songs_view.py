@@ -169,6 +169,22 @@ class SongsView(QWidget):
         )
         action = menu.addAction("✎ Edit MP3 Tag")
         action.triggered.connect(lambda: self._edit_tags(track))
+
+        # Add to Playlist submenu
+        from nocturne.data.playlist_manager import PlaylistManager
+        pm = PlaylistManager()
+        playlists = pm.list_all()
+        if playlists:
+            sub = menu.addMenu("♪ Add to Playlist")
+            for pl in playlists:
+                pl_action = sub.addAction(pl.name)
+                pl_action.triggered.connect(
+                    lambda checked=False, pid=pl.id, t=track: self._add_to_playlist(t, pid)
+                )
+        else:
+            pl_action = menu.addAction("♪ Add to Playlist")
+            pl_action.triggered.connect(lambda: self._create_and_add(track))
+
         remove_action = menu.addAction("✕ Remove from library")
         remove_action.triggered.connect(lambda: self._remove_track(track))
         menu.exec(self.table.viewport().mapToGlobal(pos))
@@ -192,6 +208,28 @@ class SongsView(QWidget):
         refreshed = SongsController().load_tracks()
         self.load(refreshed)
         signalBus.tags_edited.emit()
+
+    def _add_to_playlist(self, track: Track, playlist_id: int) -> None:
+        from nocturne.data.playlist_manager import PlaylistManager
+        from qfluentwidgets import InfoBar
+        pm = PlaylistManager()
+        pm.add_track(playlist_id, track.id)
+        pl = next((p for p in pm.list_all() if p.id == playlist_id), None)
+        name = pl.name if pl else "playlist"
+        InfoBar.success("Added", f"\"{track.title}\" added to {name}", parent=self, duration=2000)
+
+    def _create_and_add(self, track: Track) -> None:
+        from PySide6.QtWidgets import QInputDialog
+        from nocturne.data.playlist_manager import PlaylistManager
+        from qfluentwidgets import InfoBar
+        name, ok = QInputDialog.getText(self, "New Playlist", "Playlist name:")
+        if not ok or not name.strip():
+            return
+        pm = PlaylistManager()
+        pid = pm.create(name.strip())
+        pm.add_track(pid, track.id)
+        InfoBar.success("Created", f"Playlist \"{name.strip()}\" created with track", parent=self, duration=2000)
+        signalBus.playlist_changed.emit()
 
     def _edit_tags(self, track: Track) -> None:
         if not track.path or not os.path.isfile(track.path):
