@@ -20,6 +20,7 @@ class SignalBus(QObject):
     reduce_motion_changed = Signal(bool)
     playlist_changed = Signal()
     tags_edited = Signal()
+    eq_preset_changed = Signal(str)
 
 
 signalBus = SignalBus()

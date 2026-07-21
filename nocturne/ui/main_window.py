@@ -312,6 +312,7 @@ class MainWindow(QWidget):
         signalBus.reduce_motion_changed.connect(self.stage.ring.set_reduce_motion)
         signalBus.playlist_changed.connect(self._rebuild_playlist_nav)
         signalBus.tags_edited.connect(self._refresh_after_tags_edit)
+        signalBus.eq_preset_changed.connect(self.player_bar.set_eq_preset)
 
         # ── Controller connections ────────────────────────────────────
         self.ctrl.track_changed.connect(self._on_track_changed)

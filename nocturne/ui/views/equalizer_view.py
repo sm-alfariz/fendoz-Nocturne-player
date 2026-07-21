@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 from qfluentwidgets import ComboBox, PushButton
 
 from nocturne.core.equalizer import BAND_LABELS, Equalizer
+from nocturne.common.signal_bus import signalBus
 from nocturne.ui.common import TITLE_STYLE
 from nocturne.ui.theme.tokens import Color
 
@@ -105,6 +106,7 @@ class EqualizerView(QWidget):
             for i, s in enumerate(self._sliders):
                 s.set_value(values[i])
             self._eq.apply_preset(name)
+            signalBus.eq_preset_changed.emit(name)
 
     def _on_band_changed(self, index: int, db: float) -> None:
         self._eq.set_band(index, db)
