@@ -78,6 +78,9 @@ class Equalizer:
         if not self._active or not self._eq:
             return
         self._eq.set_amp_at_index(max(-12.0, min(12.0, db_value)), band_index)
+        # Re-attach so the change takes effect immediately
+        if self._player is not None:
+            self._player.set_equalizer(self._eq)
 
     def attach_to_player(self, player) -> None:
         """Attach equalizer to a libVLC media player."""

@@ -548,6 +548,10 @@ class MainWindow(QWidget):
         if hasattr(songs, "highlight_track"):
             songs.highlight_track(track.id)
 
+        playlist = self._pages.get("playlist")
+        if hasattr(playlist, "highlight_track"):
+            playlist.highlight_track(track.id)
+
         pix = None
         if track.album_id:
             conn = get_connection()

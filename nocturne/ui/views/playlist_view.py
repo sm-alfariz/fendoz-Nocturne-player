@@ -185,6 +185,14 @@ class PlaylistDetail(QWidget):
                             parent=self, duration=3000)
         self.load(self._playlist_id)
 
+    def highlight_track(self, track_id: int) -> None:
+        """Highlight the currently playing track in the list."""
+        for i in range(self.track_list.count()):
+            item = self.track_list.item(i)
+            if item and item.data(Qt.UserRole) == track_id:
+                self.track_list.setCurrentItem(item)
+                break
+
     def _on_double_click(self, index) -> None:
         row = index.row()
         if 0 <= row < len(self._tracks):
@@ -250,6 +258,9 @@ class PlaylistView(QWidget):
         self._reload_list()
         self.detail.title_label.setText("Select a playlist")
         self.detail.track_list.clear()
+
+    def highlight_track(self, track_id: int) -> None:
+        self.detail.highlight_track(track_id)
 
     def _reload_list(self) -> None:
         self.playlist_list.blockSignals(True)
