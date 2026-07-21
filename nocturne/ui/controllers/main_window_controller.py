@@ -152,6 +152,8 @@ class MainWindowController(Controller):
         if track.source_type == "local":
             if not track.path or not Path(track.path).exists():
                 return
+        elif track.source_type == "soundcloud":
+            self._refresh_sc_stream(track)
         if queue is not None:
             idx = next((i for i, t in enumerate(queue) if t.id == track.id), 0)
             self._play(queue, idx)
@@ -266,6 +268,20 @@ class MainWindowController(Controller):
             self._current_track = track
             self.player_engine.save_state()
             self._on_track_changed(track)
+
+    def _refresh_sc_stream(self, track: Track) -> None:
+        """Re-resolve expired SoundCloud stream URL before playback."""
+        if not track.source_url:
+            return
+        from nocturne.integrations.soundcloud.resolver import get_stream
+        from nocturne.data.db import upsert_sc_track
+        try:
+            new_stream = get_stream(track.source_url)
+            if new_stream:
+                upsert_sc_track({"source_url": track.source_url, "stream_url": new_stream})
+                track.path = new_stream
+        except Exception:
+            logger.warning("Failed to refresh SC stream for: %s", track.source_url)
 
     def seek(self, ms: int) -> None:
         self.player_engine.seek(ms)
