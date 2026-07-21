@@ -2,8 +2,20 @@
   "mcpServers": {
     "graphify": {
       "command": "python3",
-      "args": [".claude/graphify/mcp_server.py"],
+      "args": [
+        ".claude/graphify/mcp_server.py"
+      ],
       "cwd": "/home/fendoz/dev/fendoz-Nocturne-player"
+    },
+    "pyside6": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/com55/pyside6-mcp",
+        "pyside6-mcp"
+      ],
+      "env": {}
     }
   }
 }
