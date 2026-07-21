@@ -57,7 +57,9 @@ class SongTableModel(QAbstractTableModel):
                 m, s = divmod(int(t.duration_ms) // 1000, 60)
                 return f"{m}:{s:02d}"
             if col == 5:
-                return "Online" if t.source_type == "soundcloud" else ""
+                if t.source_type == "soundcloud":
+                    return "Online"
+                return "Local" if t.source_type == "local" else ""
             if col == 6:
                 return str(t.added_at)[:10] if t.added_at else ""
 
