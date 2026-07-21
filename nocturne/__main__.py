@@ -14,6 +14,12 @@ from PySide6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
 from nocturne.utils.crash_handler import install_crash_handler
 install_crash_handler()
 
+# PyInstaller frozen build: point VLC to bundled native libs
+if getattr(sys, 'frozen', False):
+    _meipass = sys._MEIPASS
+    os.environ.setdefault('VLC_PLUGIN_PATH', os.path.join(_meipass, 'vlc_plugins'))
+    os.environ.setdefault('PYTHON_VLC_LIB_PATH', os.path.join(_meipass, 'libvlc.so.5'))
+
 QLoggingCategory.setFilterRules("""
     qt.gui.pixmap.warning=false
     qt.qpa.window.warning=false

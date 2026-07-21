@@ -20,8 +20,6 @@ rc_*.py
 # ==========================================
 # PyInstaller specific outputs
 *.manifest
-*.spec
-
 # Build directories for frozen executables
 build/
 dist/
