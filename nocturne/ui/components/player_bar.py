@@ -151,6 +151,10 @@ class PlayerBar(QWidget):
         # ── Engine reference ────────────────────────────────────────────
         self._engine: PlayerEngine | None = None
 
+        self._is_playing = False
+        self._muted = False
+        self._last_vol = 70
+
         # ── Layout ──────────────────────────────────────────────────────
         layout = QHBoxLayout(self)
         layout.setContentsMargins(24, 8, 24, 8)
@@ -267,6 +271,28 @@ class PlayerBar(QWidget):
         self.vol_btn.clicked.connect(self._toggle_mute)
         right.addWidget(self.vol_btn)
 
+        self.vol_slider = QSlider(Qt.Horizontal)
+        self.vol_slider.setRange(0, 100)
+        self.vol_slider.setValue(self._last_vol)
+        self.vol_slider.setFixedWidth(80)
+        self.vol_slider.valueChanged.connect(self._on_volume_changed)
+        self.vol_slider.setStyleSheet(
+            f"""
+            QSlider::groove:horizontal {{
+                height: 4px; border-radius: 2px;
+                background: {Color.BORDER};
+            }}
+            QSlider::handle:horizontal {{
+                width: 12px; height: 12px; margin: -4px 0;
+                border-radius: 6px; background: {Color.TEXT_PRIMARY};
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {Color.ACCENT}; border-radius: 2px;
+            }}
+            """
+        )
+        right.addWidget(self.vol_slider)
+
         self.eq_label = QLabel("EQ: Flat")
         self.eq_label.setStyleSheet(
             f"color:{Color.ACCENT};font-size:11px;"
@@ -282,10 +308,6 @@ class PlayerBar(QWidget):
         self._timer.setInterval(300)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
-
-        self._is_playing = False
-        self._muted = False
-        self._last_vol = 70
 
     # ── Engine binding ──────────────────────────────────────────────
 
@@ -334,6 +356,16 @@ class PlayerBar(QWidget):
             return
         self._muted = not self._muted
         self._engine.volume = 0 if self._muted else self._last_vol
+        ico = _ico()["vol_off"] if self._muted else _ico()["vol_on"]
+        self.vol_btn.setIcon(ico)
+        self.vol_btn.setIconSize(ico.size())
+
+    def _on_volume_changed(self, value: int) -> None:
+        if not self._engine:
+            return
+        self._last_vol = value
+        self._muted = value == 0
+        self._engine.volume = value
         ico = _ico()["vol_off"] if self._muted else _ico()["vol_on"]
         self.vol_btn.setIcon(ico)
         self.vol_btn.setIconSize(ico.size())
