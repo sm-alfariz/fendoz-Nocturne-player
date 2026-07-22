@@ -140,7 +140,7 @@ class PlayerBar(QWidget):
     seek_requested = Signal(int)
     shuffle_toggled = Signal()
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, eq_preset: str = "Flat", parent=None) -> None:
         super().__init__(parent)
         self.setFixedHeight(72)
         self.setStyleSheet(
@@ -292,7 +292,7 @@ class PlayerBar(QWidget):
             """
         )
         right.addWidget(self.vol_slider)
-        self.eq_label = QLabel("EQ: Flat")
+        self.eq_label = QLabel(f"EQ: {eq_preset}")
         self.eq_label.setStyleSheet(
             f"color:{Color.ACCENT};font-size:11px;"
         )
