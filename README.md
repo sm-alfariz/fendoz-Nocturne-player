@@ -105,9 +105,11 @@ pip install pyaudiowpatch
 # Auto-fix
 .venv/bin/python -m ruff check nocturne/ --fix
 
-# Test
+# Run all tests (76 tests across 10 test files)
 .venv/bin/python -m pytest tests/ -v
-.venv/bin/python -m pytest tests/test_signal_bus.py -v
+
+# Run a specific test file
+.venv/bin/python -m pytest tests/test_lyrics_sync.py -v
 ```
 
 ## Tech Stack
@@ -126,8 +128,9 @@ pip install pyaudiowpatch
 - [ ] FR-4.1: PCM capture — Linux (PulseAudio) dan Windows (WASAPI) done, ALSA dan macOS belum
 - [ ] FR-5.2: Online lyrics lookup (belum)
 - [ ] FR-6.x: SoundCloud integration (Fase 2, belum fully wired)
-- [ ] Tests: perlu ekspansi test suite
-- [ ] Cover art: beter fallback cache
+- [ ] FR-3.4: EQ preset per-track apply
+- [ ] Integration tests: player_engine, library_scanner, audio_worker need real audio I/O
+- [ ] UI tests: views, components, controllers widget-level coverage
 
 ## Lisensi
 

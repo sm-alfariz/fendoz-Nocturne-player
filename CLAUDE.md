@@ -38,14 +38,15 @@ Whenever creating a new UI module, include both the UI view logic and a brief ex
 # Run app
 .venv/bin/python -m nocturne
 
-# Run tests
+# Run all tests (76 tests, 10 files)
 .venv/bin/python -m pytest tests/ -v
 
-# Run a single test
-.venv/bin/python -m pytest tests/test_signal_bus.py -v
+# Run a single test file
+.venv/bin/python -m pytest tests/test_lyrics_sync.py -v
 
 # Lint (ruff)
 .venv/bin/python -m ruff check nocturne/
+.venv/bin/python -m ruff check tests/
 .venv/bin/python -m ruff check nocturne/ --fix
 
 # Type check (optional — no mypy config yet)
@@ -133,6 +134,9 @@ Full requirements spec in 14 markdown files. Key IDs: FR-1.x (playback), FR-2.x 
 - FR-4.1: PCM capture — Linux (PulseAudio) and Windows (WASAPI) done, ALSA and macOS not implemented
 - FR-6.x: SoundCloud integration not wired (Fase 2)
 - FR-5.2: Online lyrics lookup not implemented (Fase 2)
+- FR-3.4: EQ preset per-track apply not implemented
+- Integration tests: player_engine, library_scanner, audio_worker need real audio I/O (skipped)
+- UI tests: views, components, controllers not yet covered
 - Tray: Wayland support depends on compositor — may need `qt6-wayland` or fallback to no-tray mode
 
 ## graphify
