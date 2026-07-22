@@ -144,7 +144,7 @@ class PlayerBar(QWidget):
         super().__init__(parent)
         self.setFixedHeight(72)
         self.setStyleSheet(
-            f"background:rgba(10,15,30,0.75);"
+            "background:rgba(10,15,30,0.75);"
            
         )
 

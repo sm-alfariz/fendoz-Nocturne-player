@@ -91,7 +91,6 @@ class LibraryScanner:
     @staticmethod
     def _parse_filename(stem: str) -> tuple[Optional[str], Optional[str]]:
         """Parse 'Artist - Title' from filename stem. Returns (artist, title)."""
-        import re
         # Common separators: " - ", " – ", " — ", "_-_", "-"
         # Try " - " first (most common)
         for sep in [" - ", " – ", " — ", "_-_", "-"]:
