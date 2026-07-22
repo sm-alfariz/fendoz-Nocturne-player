@@ -119,8 +119,53 @@ class Equalizer:
 
     @classmethod
     def all_presets(cls, include_custom: Optional[dict[str, list[float]]] = None) -> dict[str, list[float]]:
-        """Return built-in presets merged with custom ones."""
+        """Return built-in presets merged with custom ones from DB."""
         presets = dict(BUILTIN_PRESETS)
-        if include_custom:
-            presets.update(include_custom)
+        custom = include_custom if include_custom is not None else cls._load_custom_from_db()
+        if custom:
+            presets.update(custom)
         return presets
+
+    @classmethod
+    def _load_custom_from_db(cls) -> dict[str, list[float]]:
+        """Load custom presets from DB (silent, no-op on failure)."""
+        try:
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT name, band_values_json FROM eq_presets WHERE is_custom = 1"
+            ).fetchall()
+            conn.close()
+            result = {}
+            for r in rows:
+                try:
+                    result[r[0]] = json.loads(r[1])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            return result
+        except Exception:
+            return {}
+
+    # ── Active preset persistence ─────────────────────────────────────
+
+    def save_active_preset(self) -> None:
+        """Persist the current active preset name to app_settings."""
+        conn = get_connection()
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('eq_active_preset', ?)",
+            (self._current_preset,),
+        )
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def load_active_preset() -> str:
+        """Load the persisted active preset name, defaulting to 'Flat'."""
+        try:
+            conn = get_connection()
+            row = conn.execute(
+                "SELECT value FROM app_settings WHERE key = 'eq_active_preset'"
+            ).fetchone()
+            conn.close()
+            return row[0] if row else "Flat"
+        except Exception:
+            return "Flat"

@@ -21,7 +21,7 @@ class TestEqualizer:
         assert eq.current_preset == "Flat"
 
     def test_all_presets_returns_builtins(self) -> None:
-        presets = Equalizer.all_presets()
+        presets = Equalizer.all_presets(include_custom={})
         assert "Flat" in presets
         assert "Bass Boost" in presets
         assert "Rock" in presets

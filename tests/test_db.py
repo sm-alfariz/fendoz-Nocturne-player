@@ -26,6 +26,7 @@ class TestInitDb:
         assert "eq_presets" in names
         assert "lyrics" in names
         assert "play_history" in names
+        assert "app_settings" in names
         conn.close()
 
     def test_wal_mode(self, tmp_path: Path) -> None:
@@ -53,7 +54,7 @@ class TestInitDb:
         conn.execute("PRAGMA user_version = 0")
         migrate(conn, 0)
         ver = conn.execute("PRAGMA user_version").fetchone()[0]
-        assert ver == 2
+        assert ver == 3
         conn.close()
 
     def test_get_db_path(self) -> None:

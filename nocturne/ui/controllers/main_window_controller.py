@@ -54,7 +54,7 @@ class MainWindowController(Controller):
             from nocturne.core.player_engine import PlayerEngine as VLCPlayerEngine
             self.player_engine = VLCPlayerEngine()
             self.equalizer = Equalizer(self.player_engine._instance)
-            self.equalizer.apply_preset("Flat")
+            self.equalizer.apply_preset(Equalizer.load_active_preset())
             self.equalizer.attach_to_player(self.player_engine._player)
             # Dispatch to main thread — VLC fires events on libvlc event thread.
             # 500ms delay gives VLC time to update its internal list_index after auto-advance.

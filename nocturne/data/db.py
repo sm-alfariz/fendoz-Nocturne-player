@@ -117,6 +117,17 @@ def migrate(conn: sqlite3.Connection, current_version: int) -> None:
         conn.execute("PRAGMA user_version = 2")
         conn.commit()
 
+    if current_version < 3:
+        # v3: app_settings key-value table for global preferences
+        conn.executescript(
+            "CREATE TABLE IF NOT EXISTS app_settings ("
+            "  key TEXT PRIMARY KEY,"
+            "  value TEXT NOT NULL"
+            ");"
+        )
+        conn.execute("PRAGMA user_version = 3")
+        conn.commit()
+
 
 def get_connection() -> sqlite3.Connection:
     """Return a connection with Row factory (call from main thread only).

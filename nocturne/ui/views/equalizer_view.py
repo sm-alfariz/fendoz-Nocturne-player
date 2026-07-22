@@ -99,6 +99,11 @@ class EqualizerView(QWidget):
 
         layout.addStretch()
 
+        # Restore persisted preset
+        saved = Equalizer.load_active_preset()
+        if saved in list(equalizer.all_presets().keys()):
+            self.preset_combo.setCurrentText(saved)
+
     def _on_preset_change(self, name: str) -> None:
         presets = self._eq.all_presets()
         if name in presets:
@@ -106,6 +111,7 @@ class EqualizerView(QWidget):
             for i, s in enumerate(self._sliders):
                 s.set_value(values[i])
             self._eq.apply_preset(name)
+            self._eq.save_active_preset()
             signalBus.eq_preset_changed.emit(name)
 
     def _on_band_changed(self, index: int, db: float) -> None:

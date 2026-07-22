@@ -292,12 +292,9 @@ class PlayerBar(QWidget):
             """
         )
         right.addWidget(self.vol_slider)
-
         self.eq_label = QLabel("EQ: Flat")
         self.eq_label.setStyleSheet(
             f"color:{Color.ACCENT};font-size:11px;"
-            f"background:rgba(79,195,247,0.08);border:1px solid {Color.BORDER};"
-            f"padding:6px 10px;border-radius:9px;"
         )
         right.addWidget(self.eq_label)
 
