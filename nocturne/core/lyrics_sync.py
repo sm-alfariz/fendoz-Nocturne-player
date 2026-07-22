@@ -26,7 +26,7 @@ class LyricLine:
     text: str = field(compare=False)
 
 
-LRC_LINE_RE = re.compile(r"\[(\d+):(\d+)(?:\.(\d+))?\](.*)")
+LRC_LINE_RE = re.compile(r"\[(\d+):(\d+)(?:\.(\d+))?\](.*?)(?=\[|$)")
 
 
 class LyricsParser:
