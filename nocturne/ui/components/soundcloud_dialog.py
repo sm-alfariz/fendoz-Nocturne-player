@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QProgressBar,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -209,6 +210,18 @@ class SoundCloudDialog(QDialog):
         self.status.setStyleSheet(f"color:{Color.TEXT_DIM};font-size:11px;")
         layout.addWidget(self.status)
 
+        # Loading bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 0)  # indeterminate
+        self.progress_bar.setFixedHeight(3)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet(
+            f"QProgressBar{{background:transparent;border:none;}}"
+            f"QProgressBar::chunk{{background:{Color.ACCENT};border-radius:1px;}}"
+        )
+        self.progress_bar.hide()
+        layout.addWidget(self.progress_bar)
+
         # Results list
         self.results_list = QListWidget()
         layout.addWidget(self.results_list, 1)
@@ -255,12 +268,14 @@ class SoundCloudDialog(QDialog):
         if not text:
             return
         self.status.setText("Searching…")
+        self.progress_bar.show()
         self.action_btn.setEnabled(False)
         self.results_list.clear()
         self._start_worker(SearchWorker(text, self))
 
     def _resolve_url(self, url: str) -> None:
         self.status.setText("Resolving…")
+        self.progress_bar.show()
         self.action_btn.setEnabled(False)
         self.results_list.clear()
         self._start_worker(ResolveWorker(url, self))
@@ -289,6 +304,7 @@ class SoundCloudDialog(QDialog):
         self._show_tracks(tracks, "Could not resolve URL.")
 
     def _show_tracks(self, tracks: list[dict], empty_msg: str) -> None:
+        self.progress_bar.hide()
         self.results_list.clear()
         if not tracks:
             self.status.setText(empty_msg)
@@ -305,6 +321,7 @@ class SoundCloudDialog(QDialog):
         self.action_btn.setEnabled(True)
 
     def _on_error(self, msg: str) -> None:
+        self.progress_bar.hide()
         self.status.setText(msg)
         InfoBar.error("Error", msg, parent=self)
 
