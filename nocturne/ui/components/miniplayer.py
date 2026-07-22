@@ -22,6 +22,27 @@ from nocturne.ui.icon_utils import pixmap_scaled
 from nocturne.ui.theme.tokens import Color, FontWeights
 
 
+class _ClickableBar(QWidget):
+    """Horizontal progress bar that emits seek ratio (0.0–1.0) on click/drag."""
+
+    seek_ratio = Signal(float)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setMouseTracking(True)
+
+    def _ratio_from_event(self, e) -> float:
+        return max(0.0, min(1.0, e.position().x() / max(self.width(), 1)))
+
+    def mousePressEvent(self, e) -> None:
+        if e.button() == Qt.LeftButton:
+            self.seek_ratio.emit(self._ratio_from_event(e))
+
+    def mouseMoveEvent(self, e) -> None:
+        if e.buttons() & Qt.LeftButton:
+            self.seek_ratio.emit(self._ratio_from_event(e))
+
+
 # Lazy icon cache - populated on first use (needs QApplication)
 _MICO = None
 
@@ -270,8 +291,8 @@ class MiniPlayer(_RoundedWidget):
         meta.addWidget(self.title_label)
         meta.addWidget(self.artist_label)
 
-        # Progress bar in compact mode
-        self.compact_progress = QWidget()
+        # Progress bar in compact mode (clickable)
+        self.compact_progress = _ClickableBar()
         self.compact_progress.setFixedHeight(3)
         self.compact_progress.setStyleSheet(
             f"background:{Color.BORDER};border-radius:2px;"
@@ -282,6 +303,7 @@ class MiniPlayer(_RoundedWidget):
             f"stop:0 {Color.PRIMARY},stop:1 {Color.ACCENT});"
             f"border-radius:2px;"
         )
+        self.compact_progress.seek_ratio.connect(self._on_seek_ratio)
         meta.addWidget(self.compact_progress)
 
         # Time row
@@ -363,7 +385,7 @@ class MiniPlayer(_RoundedWidget):
         self.exp_time.setFixedWidth(30)
         scrub.addWidget(self.exp_time)
 
-        self.scrub_track = QWidget()
+        self.scrub_track = _ClickableBar()
         self.scrub_track.setFixedHeight(4)
         self.scrub_track.setStyleSheet(
             f"background:{Color.BORDER};border-radius:2px;"
@@ -374,6 +396,7 @@ class MiniPlayer(_RoundedWidget):
             f"stop:0 {Color.PRIMARY},stop:1 {Color.ACCENT});"
             f"border-radius:2px;"
         )
+        self.scrub_track.seek_ratio.connect(self._on_seek_ratio)
         scrub.addWidget(self.scrub_track, 1)
 
         self.exp_duration = QLabel("0:00")
@@ -495,6 +518,10 @@ class MiniPlayer(_RoundedWidget):
         self._timer.setInterval(300)
         self._timer.timeout.connect(self._poll)
         self._timer.start()
+
+    def _on_seek_ratio(self, ratio: float) -> None:
+        if self._engine and self._engine.duration_ms > 0:
+            self._engine.seek(int(ratio * self._engine.duration_ms))
 
     # Helpers
 
