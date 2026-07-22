@@ -437,11 +437,11 @@ class MainWindow(QWidget):
             self._views.setCurrentWidget(self._pages[key])
             if key == "artists":
                 view = self._pages[key]
-                if isinstance(view, ArtistsView):
+                if isinstance(view, ArtistsView) and view.grid_layout.count() == 0:
                     view.load(self.ctrl.artists.load_artists())
             elif key == "albums":
                 view = self._pages[key]
-                if isinstance(view, AlbumsView):
+                if isinstance(view, AlbumsView) and view.grid_layout.count() == 0:
                     view.load(self.ctrl.albums.load_albums())
             elif key == "equalizer" and self._current_track:
                 conn = get_connection()
