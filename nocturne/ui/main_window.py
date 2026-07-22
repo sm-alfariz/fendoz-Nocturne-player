@@ -35,6 +35,7 @@ from qfluentwidgets import (
 
 from nocturne.config.config import ROOT, cfg
 from nocturne.ui.components.player_bar import PlayerBar
+from nocturne.ui.icon_utils import artwork_pixmap
 from nocturne.ui.components.lyrics_panel import LyricsPanel
 from nocturne.ui.components.miniplayer import MiniPlayer
 from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
@@ -558,9 +559,7 @@ class MainWindow(QWidget):
                 "SELECT artwork_blob FROM albums WHERE id = ?", (track.album_id,)
             ).fetchone()
             if row and row[0]:
-                p = QPixmap()
-                if p.loadFromData(row[0]):
-                    pix = p
+                pix = artwork_pixmap(track.album_id, row[0], size=300)
 
         if not pix and track.path and track.source_type == "local":
             # fallback: read artwork directly from file

@@ -7,12 +7,12 @@ from __future__ import annotations
 
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
 from nocturne.ui.common import clear_flow_layout, make_empty_label, TITLE_STYLE
+from nocturne.ui.icon_utils import artwork_pixmap
 from nocturne.ui.theme.tokens import Color
 
 
@@ -31,9 +31,9 @@ class AlbumCard(CardWidget):
         self.artwork.setAlignment(Qt.AlignCenter)
         self.artwork.setStyleSheet(f"background: {Color.CARD}; border-radius: 8px;")
         if artwork_blob:
-            pixmap = QPixmap()
-            if pixmap.loadFromData(artwork_blob):
-                self.artwork.setPixmap(pixmap.scaled(140, 140, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            px = artwork_pixmap(album_id, artwork_blob)
+            if px:
+                self.artwork.setPixmap(px)
         layout.addWidget(self.artwork, 0, Qt.AlignCenter)
 
         self.title_label = QLabel(title if len(title) < 30 else title[:27] + "...")
