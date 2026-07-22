@@ -435,7 +435,15 @@ class MainWindow(QWidget):
     def _switch_to(self, key: str) -> None:
         if key in self._pages:
             self._views.setCurrentWidget(self._pages[key])
-            if key == "equalizer" and self._current_track:
+            if key == "artists":
+                view = self._pages[key]
+                if isinstance(view, ArtistsView):
+                    view.load(self.ctrl.artists.load_artists())
+            elif key == "albums":
+                view = self._pages[key]
+                if isinstance(view, AlbumsView):
+                    view.load(self.ctrl.albums.load_albums())
+            elif key == "equalizer" and self._current_track:
                 conn = get_connection()
                 row = conn.execute(
                     "SELECT eq_preset FROM tracks WHERE id = ?",
