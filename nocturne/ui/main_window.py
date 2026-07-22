@@ -274,6 +274,7 @@ class MainWindow(QWidget):
         # ── UI components ─────────────────────────────────────────────
         self.player_bar = PlayerBar(self)
         self.player_bar.bind_engine(self.ctrl.player_engine)
+        self.player_bar.set_eq_preset(self.ctrl.equalizer.current_preset)
         signalBus.play_toggled.connect(self._on_play_toggled)
         self.player_bar.next_requested.connect(self.ctrl.next_track)
         self.player_bar.prev_requested.connect(self.ctrl.prev_track)
