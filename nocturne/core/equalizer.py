@@ -55,6 +55,8 @@ class Equalizer:
             return
         if name in BUILTIN_PRESETS:
             values = BUILTIN_PRESETS[name]
+        elif name in self.all_presets():
+            values = self.all_presets()[name]
         elif custom_values is not None and len(custom_values) == BAND_COUNT:
             values = custom_values
             name = "Custom"
