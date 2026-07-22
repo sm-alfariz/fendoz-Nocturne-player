@@ -7,7 +7,7 @@ from __future__ import annotations
 
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
@@ -37,7 +37,7 @@ class AlbumCard(CardWidget):
         layout.addWidget(self.artwork, 0, Qt.AlignCenter)
 
         self.title_label = QLabel(title if len(title) < 30 else title[:27] + "...")
-        self.title_label.setStyleSheet("font-size: 13px; font-weight: 600;")
+        self.title_label.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Color.TEXT_PRIMARY};")
         self.title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.title_label)
 
@@ -71,9 +71,21 @@ class AlbumsView(QWidget):
         title.setStyleSheet(TITLE_STYLE)
         layout.addWidget(title)
 
+        # Loading placeholder
+        self._loading_label = make_empty_label("Loading…")
+        layout.addWidget(self._loading_label)
+
+        # Scrollable grid
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll.setStyleSheet("QScrollArea{background:transparent;border:none;}")
         self.grid = QWidget()
+        self.grid.setStyleSheet("background:transparent;")
         self.grid_layout = FlowLayout(self.grid)
-        layout.addWidget(self.grid)
+        self._scroll.setWidget(self.grid)
+        self._scroll.hide()
+        layout.addWidget(self._scroll, 1)
 
     def _filter(self, text: str) -> None:
         self._filter_text = text
@@ -81,6 +93,8 @@ class AlbumsView(QWidget):
 
     def load(self, rows: list[tuple] | None = None) -> None:
         clear_flow_layout(self.grid_layout)
+        self._loading_label.hide()
+        self._scroll.show()
         if rows is None:
             conn = get_connection()
             query = (

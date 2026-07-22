@@ -6,7 +6,7 @@ artists_view.py — Grid card view of artists, click to show tracks.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QLabel, QScrollArea, QVBoxLayout, QWidget
 from qfluentwidgets import CardWidget, FlowLayout
 
 from nocturne.data.db import get_connection
@@ -22,7 +22,7 @@ class ArtistCard(CardWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
         self.name_label = QLabel(name)
-        self.name_label.setStyleSheet("font-size: 16px; font-weight: 600;")
+        self.name_label.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {Color.TEXT_PRIMARY};")
         self.count_label = QLabel(f"{track_count} tracks")
         self.count_label.setStyleSheet(f"color: {Color.TEXT_DIM}; font-size: 12px;")
         layout.addWidget(self.name_label, 0, Qt.AlignCenter)
@@ -53,9 +53,21 @@ class ArtistsView(QWidget):
         title.setStyleSheet(TITLE_STYLE)
         layout.addWidget(title)
 
+        # Loading placeholder
+        self._loading_label = make_empty_label("Loading…")
+        layout.addWidget(self._loading_label)
+
+        # Scrollable grid
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll.setStyleSheet("QScrollArea{background:transparent;border:none;}")
         self.grid = QWidget()
+        self.grid.setStyleSheet("background:transparent;")
         self.grid_layout = FlowLayout(self.grid)
-        layout.addWidget(self.grid)
+        self._scroll.setWidget(self.grid)
+        self._scroll.hide()
+        layout.addWidget(self._scroll, 1)
 
     def _filter(self, text: str) -> None:
         self._filter_text = text
@@ -63,6 +75,8 @@ class ArtistsView(QWidget):
 
     def load(self, rows: list[tuple[str, int]] | None = None) -> None:
         clear_flow_layout(self.grid_layout)
+        self._loading_label.hide()
+        self._scroll.show()
         if rows is None:
             conn = get_connection()
             query = (
