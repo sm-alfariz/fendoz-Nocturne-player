@@ -88,6 +88,19 @@ class LibraryScanner:
 
     # ── Internals ─────────────────────────────────────────────────────
 
+    @staticmethod
+    def _parse_filename(stem: str) -> tuple[Optional[str], Optional[str]]:
+        """Parse 'Artist - Title' from filename stem. Returns (artist, title)."""
+        import re
+        # Common separators: " - ", " – ", " — ", "_-_", "-"
+        # Try " - " first (most common)
+        for sep in [" - ", " – ", " — ", "_-_", "-"]:
+            if sep in stem:
+                parts = stem.split(sep, 1)
+                if len(parts) == 2 and all(p.strip() for p in parts):
+                    return parts[0].strip(), parts[1].strip()
+        return None, None
+
     def _collect_files(self, folders: list[Path]) -> list[Path]:
         files: list[Path] = []
         for folder in folders:
@@ -131,13 +144,23 @@ class LibraryScanner:
             _tag(tags.get("title", tags.get("TIT2", "")))
             if hasattr(tags, "get")
             else str(getattr(mf, "title", ""))
-        ) or path.stem
+        ) or None
 
         artist = (
             _tag(tags.get("artist", tags.get("TPE1", "")))
             if hasattr(tags, "get")
             else str(getattr(mf, "artist", ""))
         ) or None
+
+        # Fallback: parse "Artist - Title" from filename
+        if not artist or not title:
+            parsed_artist, parsed_title = self._parse_filename(path.stem)
+            if not artist:
+                artist = parsed_artist
+            if not title:
+                title = parsed_title
+
+        title = title or path.stem
 
         album = (
             _tag(tags.get("album", tags.get("TALB", "")))
