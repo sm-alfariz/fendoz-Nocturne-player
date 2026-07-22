@@ -92,8 +92,8 @@ class TopBar(QWidget):
         self.setFixedHeight(52)
  
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(24, 8, 24, 0)
-        layout.setSpacing(24)
+        layout.setContentsMargins(12, 4, 12, 0)
+        layout.setSpacing(12)
 
         logo_row = QHBoxLayout()
         logo_row.setSpacing(5)
@@ -115,7 +115,7 @@ class TopBar(QWidget):
         self.search.addAction(FIF.SEARCH.icon(), QLineEdit.LeadingPosition)
         self.search.setStyleSheet(
             f"background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
-            f"border-radius:12px;padding:9px 14px 9px 36px;"
+            f"border-radius:12px;padding:7px 14px 7px 7px;"
             f"color:{Color.TEXT_PRIMARY};font-size:13px;outline:none;"
             f"selection-background-color:{Color.ACCENT};"
         )

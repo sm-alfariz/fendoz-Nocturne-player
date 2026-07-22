@@ -113,9 +113,9 @@ class EqualizerView(QWidget):
         self.preset_combo.setCurrentText("Custom")
 
     def _save_custom(self) -> None:
-        from PySide6.QtWidgets import QInputDialog
+        from nocturne.ui.views.playlist_view import _styled_input_dialog
         from qfluentwidgets import InfoBar
-        name, ok = QInputDialog.getText(self, "Save Preset", "Preset name:")
+        name, ok = _styled_input_dialog(self, "Save Preset", "Preset name:")
         if not ok or not name.strip():
             return
         values = [s.slider.value() / 10.0 for s in self._sliders]

@@ -219,10 +219,10 @@ class SongsView(QWidget):
         InfoBar.success("Added", f"\"{track.title}\" added to {name}", parent=self, duration=2000)
 
     def _create_and_add(self, track: Track) -> None:
-        from PySide6.QtWidgets import QInputDialog
         from nocturne.data.playlist_manager import PlaylistManager
+        from nocturne.ui.views.playlist_view import _styled_input_dialog
         from qfluentwidgets import InfoBar
-        name, ok = QInputDialog.getText(self, "New Playlist", "Playlist name:")
+        name, ok = _styled_input_dialog(self, "New Playlist", "Playlist name:")
         if not ok or not name.strip():
             return
         pm = PlaylistManager()

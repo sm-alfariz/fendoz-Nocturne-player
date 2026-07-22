@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QDialog,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMenu,
@@ -26,7 +27,44 @@ from nocturne.data.models import Track
 from nocturne.data.playlist_manager import PlaylistManager
 from nocturne.ui.common import TITLE_STYLE
 from nocturne.ui.icon_utils import pixmap
-from nocturne.ui.theme.tokens import Color
+from nocturne.ui.theme.tokens import Color, Fonts
+
+
+def _styled_input_dialog(parent: QWidget, title: str, label: str) -> tuple[str, bool]:
+    """Show a themed input dialog; returns (text, accepted)."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle(title)
+    dlg.setMinimumWidth(340)
+    dlg.setStyleSheet(
+        f"QDialog{{background:{Color.BACKGROUND_DEEP};}}"
+        f"QLabel{{color:{Color.TEXT_PRIMARY};font-size:13px;background:transparent;}}"
+        f"QLineEdit{{background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
+        f"border-radius:8px;padding:8px 12px;color:{Color.TEXT_PRIMARY};"
+        f"font-family:'{Fonts.BODY}';font-size:13px;}}"
+        f"QLineEdit:focus{{border-color:{Color.ACCENT};}}"
+        f"QPushButton{{background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
+        f"border-radius:8px;padding:6px 18px;color:{Color.TEXT_PRIMARY};"
+        f"font-family:'{Fonts.BODY}';font-size:13px;}}"
+        f"QPushButton:hover{{border-color:{Color.ACCENT};color:{Color.ACCENT};}}"
+    )
+    layout = QVBoxLayout(dlg)
+    layout.setContentsMargins(20, 20, 20, 16)
+    layout.setSpacing(12)
+    layout.addWidget(QLabel(label))
+    le = QLineEdit()
+    le.setPlaceholderText("Playlist name…")
+    layout.addWidget(le)
+    btn_row = QHBoxLayout()
+    btn_row.addStretch()
+    cancel = QPushButton("Cancel")
+    cancel.clicked.connect(dlg.reject)
+    btn_row.addWidget(cancel)
+    ok = QPushButton("Create")
+    ok.clicked.connect(dlg.accept)
+    btn_row.addWidget(ok)
+    layout.addLayout(btn_row)
+    le.returnPressed.connect(dlg.accept)
+    return (le.text().strip(), dlg.exec() == QDialog.Accepted)
 
 
 class PlaylistDetail(QWidget):
@@ -43,7 +81,9 @@ class PlaylistDetail(QWidget):
 
         top = QHBoxLayout()
         self.title_label = QLabel("Select a playlist")
-        self.title_label.setStyleSheet("font-size: 20px; font-weight: 700;")
+        self.title_label.setStyleSheet(
+            f"font-family:'Sora';font-size:20px;font-weight:700;color:{Color.TEXT_PRIMARY};"
+        )
         top.addWidget(self.title_label)
         top.addStretch()
 
@@ -287,7 +327,7 @@ class PlaylistView(QWidget):
             self.detail.load(pid)
 
     def _create(self) -> None:
-        name, ok = QInputDialog.getText(self, "New Playlist", "Playlist name:")
+        name, ok = _styled_input_dialog(self, "New Playlist", "Playlist name:")
         if ok and name.strip():
             self._pm.create(name.strip())
             self._reload_list()

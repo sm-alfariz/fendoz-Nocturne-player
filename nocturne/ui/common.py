@@ -41,4 +41,4 @@ def make_empty_label(text: str, parent: QWidget | None = None) -> QWidget:
     return label
 
 
-TITLE_STYLE = "font-size: 24px; font-weight: 700;"
+TITLE_STYLE = f"font-family:'Sora';font-size:24px;font-weight:700;color:{Color.TEXT_PRIMARY};"
