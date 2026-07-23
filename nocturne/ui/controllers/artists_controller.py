@@ -16,7 +16,7 @@ class ArtistsController(Controller):
     def load_artists(self, filter_text: str = "") -> list[tuple[str, int]]:
         conn = get_connection()
         query = (
-            "SELECT artist, COUNT(*) as cnt FROM tracks "
+            "SELECT artist, COUNT(id) as cnt FROM tracks "
             "WHERE artist IS NOT NULL AND artist != '' "
         )
         params: list[str] = []
