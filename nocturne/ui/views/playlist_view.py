@@ -64,7 +64,8 @@ def _styled_input_dialog(parent: QWidget, title: str, label: str) -> tuple[str, 
     btn_row.addWidget(ok)
     layout.addLayout(btn_row)
     le.returnPressed.connect(dlg.accept)
-    return (le.text().strip(), dlg.exec() == QDialog.Accepted)
+    accepted = dlg.exec() == QDialog.Accepted
+    return (le.text().strip(), accepted)
 
 
 class PlaylistDetail(QWidget):
@@ -331,6 +332,8 @@ class PlaylistView(QWidget):
         if ok and name.strip():
             self._pm.create(name.strip())
             self._reload_list()
+            # Auto-select the newly created playlist
+            self.playlist_list.setCurrentRow(self.playlist_list.count() - 1)
 
     def _delete_current(self) -> None:
         pid = self.detail._playlist_id
