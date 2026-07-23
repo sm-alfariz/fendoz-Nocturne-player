@@ -14,14 +14,11 @@ import sys
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
+from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
-    QLabel,
-    QLineEdit,
     QMenu,
-    QPushButton,
     QStackedWidget,
     QSystemTrayIcon,
     QVBoxLayout,
@@ -38,8 +35,9 @@ from nocturne.ui.components.player_bar import PlayerBar
 from nocturne.ui.icon_utils import artwork_pixmap
 from nocturne.ui.components.lyrics_panel import LyricsPanel
 from nocturne.ui.components.miniplayer import MiniPlayer
-from nocturne.ui.components.ring_visualizer import RingVisualizer, SpectrumBar
 from nocturne.ui.components.scan_progress_overlay import ScanProgressOverlay
+from nocturne.ui.components.top_bar import TopBar
+from nocturne.ui.components.stage_widget import StageWidget
 from nocturne.ui.views.blank_widget import BlankWidget
 from nocturne.ui.views.home_interface import HomeInterface
 from nocturne.ui.views.setting_interface import SettingInterface
@@ -48,166 +46,13 @@ from nocturne.ui.views.artists_view import ArtistsView
 from nocturne.ui.views.albums_view import AlbumsView
 from nocturne.ui.views.playlist_view import PlaylistView
 from nocturne.ui.views.equalizer_view import EqualizerView
-from nocturne.ui.theme.tokens import Color, Fonts, FontWeights
+from nocturne.ui.theme.tokens import Color
 from nocturne.common.signal_bus import signalBus
 from nocturne.ui.controllers import MainWindowController
 from nocturne.data.db import get_connection
 from nocturne.data.models import Track
 
 logger = logging.getLogger(__name__)
-
-
-class LogoMark(QWidget):
-    """Gradient square with centre dot — mockup logo mark."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(30, 30)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        grad = QLinearGradient(0, 0, 30, 30)
-        grad.setColorAt(0, QColor(Color.PRIMARY))
-        grad.setColorAt(1, QColor(Color.ACCENT))
-        painter.setBrush(grad)
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(self.rect(), 9, 9)
-        # Outer glow shadow (mockup: box-shadow 0 0 18px rgba(79,195,247,0.5))
-        shadow = QColor(79, 195, 247, 128)
-        pen = QPen(shadow, 3)
-        painter.setPen(pen)
-        painter.drawRoundedRect(self.rect().adjusted(-1, -1, 1, 1), 10, 10)
-        # Centre dot
-        painter.setBrush(QColor(Color.BACKGROUND))
-        painter.setPen(Qt.NoPen)
-        painter.drawEllipse(10, 10, 10, 10)
-
-
-class TopBar(QWidget):
-    """Persistent top bar: logo + search + icons (mockup style)."""
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setFixedHeight(52)
- 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 4, 12, 0)
-        layout.setSpacing(12)
-
-        logo_row = QHBoxLayout()
-        logo_row.setSpacing(5)
-        logo_icon = QLabel()
-        logo_icon.setFixedSize(40, 40)
-        logo_icon.setPixmap(QIcon(os.path.join(ROOT, "resource", "img", "icon.png")).pixmap(40, 40))
-        logo_row.addWidget(logo_icon)
-        logo_text = QLabel("Nocturne")
-        logo_text.setStyleSheet(
-            f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.LOGO};"
-            f"font-size:18px;letter-spacing:0.5px;color:{Color.TEXT_PRIMARY};background:transparent;"
-        )
-        logo_row.addWidget(logo_text)
-        layout.addLayout(logo_row)
-
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("Cari lagu, artis, atau album...")
-        self.search.setFixedWidth(420)
-        self.search.addAction(FIF.SEARCH.icon(), QLineEdit.LeadingPosition)
-        self.search.setStyleSheet(
-            f"background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
-            f"border-radius:12px;padding:7px 14px 7px 7px;"
-            f"color:{Color.TEXT_PRIMARY};font-size:13px;outline:none;"
-            f"selection-background-color:{Color.ACCENT};"
-        )
-        layout.addWidget(self.search)
-
-        layout.addStretch()
-
-        self.miniplayer_btn = QPushButton()
-        self.miniplayer_btn.setIcon(FIF.MINIMIZE.icon(color=Color.TEXT_DIM))
-        self.miniplayer_btn.setFixedSize(36, 36)
-        self.miniplayer_btn.setFlat(True)
-        self.miniplayer_btn.setToolTip("Switch to Miniplayer")
-        self.miniplayer_btn.setStyleSheet(
-            f"QPushButton{{background:{Color.CARD_SOFT};border:1px solid {Color.BORDER};"
-            f"border-radius:11px;color:{Color.TEXT_DIM};}}"
-            f"QPushButton:hover{{color:{Color.ACCENT};border-color:{Color.ACCENT};"
-            f"box-shadow:0 0 14px rgba(79,195,247,0.25);}}"
-        )
-        layout.addWidget(self.miniplayer_btn)
-
-        self.settings_btn = QPushButton()
-        self.settings_btn.setIcon(FIF.SETTING.icon(color=Color.TEXT_DIM))
-        self.settings_btn.setFixedSize(36, 36)
-        self.settings_btn.setFlat(True)
-        self.settings_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
-        layout.addWidget(self.settings_btn)
-
-        self.sc_btn = QPushButton()
-        self.sc_btn.setIcon(FIF.CLOUD.icon())
-        self.sc_btn.setFixedSize(36, 36)
-        self.sc_btn.setFlat(True)
-        self.sc_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
-        self.sc_btn.setToolTip("Search SoundCloud")
-        self.sc_btn.setVisible(cfg.onlineEnabled.value)
-        cfg.onlineEnabled.valueChanged.connect(self.sc_btn.setVisible)
-        layout.addWidget(self.sc_btn)
-
-
-class StageWidget(QWidget):
-    """Center column: album art + ring + track info + spectrum bar (mockup)."""
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setStyleSheet(f"background:{Color.BACKGROUND};")
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins(32, 28, 32, 16)
-        layout.setSpacing(0)
-
-        self.ring = RingVisualizer(self)
-        self.ring.setFixedSize(280, 280)
-        layout.addSpacing(6)
-        layout.addWidget(self.ring, 0, Qt.AlignCenter)
-
-        self.track_title = QLabel("")
-        self.track_title.setStyleSheet(
-            f"font-family:'{Fonts.DISPLAY}';font-weight:{FontWeights.DISPLAY_BOLD};"
-            f"font-size:21px;letter-spacing:.2px;color:{Color.TEXT_PRIMARY};"
-        )
-        self.track_title.setAlignment(Qt.AlignCenter)
-        layout.addSpacing(24)
-        layout.addWidget(self.track_title)
-
-        self.track_artist = QLabel("")
-        self.track_artist.setStyleSheet(f"font-size:13px;color:{Color.TEXT_DIM};margin-top:5px;")
-        self.track_artist.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.track_artist)
-
-        self.tags = QWidget()
-        tl = QHBoxLayout(self.tags)
-        tl.setSpacing(8)
-        tl.setAlignment(Qt.AlignCenter)
-        self.tag_label = QLabel("")
-        self.tag_label.setStyleSheet(
-            f"font-family:'{Fonts.MONO}';font-size:10.5px;"
-            f"color:{Color.ACCENT};background:{Color.CARD_SOFT};"
-            f"border:1px solid {Color.BORDER};border-radius:20px;padding:4px 10px;"
-        )
-        tl.addWidget(self.tag_label)
-        layout.addSpacing(12)
-        layout.addWidget(self.tags)
-
-        self.spectrum = SpectrumBar(self)
-        self.spectrum.setFixedHeight(96)
-        layout.addSpacing(30)
-        layout.addWidget(self.spectrum)
-
-        layout.addStretch()
-
-    def update_tags(self, bitrate: str = "", bpm: str = "", genre: str = "") -> None:
-        parts = [p for p in [bitrate, bpm, genre] if p]
-        self.tag_label.setText(" · ".join(parts))
 
 
 class MainWindow(QWidget):

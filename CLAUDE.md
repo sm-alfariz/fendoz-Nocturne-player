@@ -77,17 +77,22 @@ nocturne/
 │   ├── db.py              # init_db, get_connection, migrations via user_version
 │   ├── models.py          # Track/Album/Playlist/EQPreset dataclasses (from_row)
 │   ├── library_scanner.py # Incremental scan: mutagen extraction, mtime dedup
+│   ├── scan_worker.py     # ScanWorker QObject for background scan signals
 │   ├── playlist_manager.py# CRUD, reorder, .m3u import/export
 │   └── relocate.py        # Batch path UPDATE when folder root moves
 ├── ui/
-│   ├── main_window.py     # 3-column layout: TopBar | Sidebar+Stage | Lyrics
+│   ├── main_window.py     # 3-column layout: Sidebar+Stage | Lyrics
 │   ├── components/
 │   │   ├── player_bar.py      # Bottom dock: custom widget with gradient progress, transport, time labels
 │   │   ├── miniplayer.py      # Frameless always-on-top miniplayer with artwork + transport
 │   │   ├── ring_visualizer.py # QPainter ring around album art + SpectrumBar
+│   │   ├── top_bar.py         # Top bar: logo, search, miniplayer/settings/SC buttons
+│   │   ├── stage_widget.py    # Center column: ring visualizer + track info + spectrum
 │   │   ├── lyrics_panel.py    # Right-side karaoke typing effect via QTextEdit HTML, Enhanced LRC word-level highlight
 │   │   ├── scan_progress_overlay.py  # Semi-transparent overlay with ProgressBar during scan
 │   │   └── soundcloud_dialog.py# URL input dialog for online source
+│   ├── workers/
+│   │   └── __init__.py     # SearchWorker, StreamWorker, ResolveWorker (SoundCloud)
 │   └── views/             # One file per sidebar nav item
 │       ├── songs_view.py      # QSortFilterProxyModel + TableView, double-click → play
 │       ├── albums_view.py     # FlowLayout cards, click → play album

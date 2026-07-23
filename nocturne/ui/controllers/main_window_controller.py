@@ -15,7 +15,7 @@ from typing import Optional
 from PySide6.QtCore import QThread, QTimer, Signal
 
 from nocturne.data.db import get_connection
-from nocturne.data.library_scanner import ScanWorker
+from nocturne.data.scan_worker import ScanWorker
 from nocturne.data.models import Track
 from nocturne.config.config import PlayerBackend, cfg
 from nocturne.core.qt_player_engine import QtPlayerEngine
