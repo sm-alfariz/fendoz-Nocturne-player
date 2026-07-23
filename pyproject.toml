@@ -20,6 +20,9 @@ dependencies = [
   "sounddevice>=0.5.1",
 ]
 
+[tool.setuptools.packages.find]
+include = ["nocturne", "nocturne.*"]
+
 [dependency-groups]
 dev = [
     "pyside6-mcp",
