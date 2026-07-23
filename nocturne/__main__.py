@@ -10,7 +10,7 @@ import os
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QColor, QIcon, QPalette
 
 from nocturne.utils.crash_handler import install_crash_handler
 install_crash_handler()
@@ -55,6 +55,24 @@ from qfluentwidgets import setTheme, Theme  # noqa: E402
 from qfluentwidgets import qconfig  # noqa: E402
 qconfig.set(qconfig.themeMode, Theme.DARK)
 setTheme(Theme.DARK)
+
+# Dark palette so native QFileDialog etc render with dark text/background
+_qp = QPalette()
+_qp.setColor(QPalette.Window, QColor("#0F172A"))
+_qp.setColor(QPalette.WindowText, QColor("#E2E8F0"))
+_qp.setColor(QPalette.Base, QColor("#1E293B"))
+_qp.setColor(QPalette.AlternateBase, QColor("#0F172A"))
+_qp.setColor(QPalette.ToolTipBase, QColor("#1E293B"))
+_qp.setColor(QPalette.ToolTipText, QColor("#E2E8F0"))
+_qp.setColor(QPalette.Text, QColor("#E2E8F0"))
+_qp.setColor(QPalette.Button, QColor("#1E293B"))
+_qp.setColor(QPalette.ButtonText, QColor("#E2E8F0"))
+_qp.setColor(QPalette.BrightText, QColor("#4FC3F7"))
+_qp.setColor(QPalette.Link, QColor("#4FC3F7"))
+_qp.setColor(QPalette.Highlight, QColor("#1E88E5"))
+_qp.setColor(QPalette.HighlightedText, QColor("#FFFFFF"))
+_qp.setColor(QPalette.PlaceholderText, QColor("#7C8AA5"))
+app.setPalette(_qp)
 
 from nocturne.ui.main_window import MainWindow  # noqa: E402
 w = MainWindow()
