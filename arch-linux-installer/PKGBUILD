@@ -11,18 +11,34 @@ license=('custom:MIT')
 depends=(
   'vlc'
   'qt6-wayland'
-  'pulseaudio'
+  'pipewire-pulse'
+)
+makedepends=(
+  'python-pyinstaller'
 )
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-  cd "${srcdir}/${pkgname}-${pkgver}"
+  cd "${srcdir}/fendoz-Nocturne-player-${pkgver}"
+  # config/config.json is gitignored — create from template if missing
+  if [ ! -f config/config.json ]; then
+    mkdir -p config
+    cat > config/config.json << 'JSON'
+{
+    "Custom": {"AutoSaveNote": false, "CloseToTray": true, "ConfirmExit": false},
+    "Material": {"AcrylicBlurRadius": 15},
+    "Online": {"CacheOffline": true, "LyricsOnline": false, "Enabled": true},
+    "MainWindow": {"DpiScale": "Auto", "Language": "Auto", "MicaEnabled": false},
+    "QFluentWidgets": {"ThemeMode": "dark", "ThemeColor": "#ff1e88e5", "Style": "Fluent"}
+}
+JSON
+  fi
   pyinstaller --noconfirm --clean nocturne.spec
 }
 
 package() {
-  cd "${srcdir}/${pkgname}-${pkgver}"
+  cd "${srcdir}/fendoz-Nocturne-player-${pkgver}"
 
   install -Dm755 dist/nocturne "$pkgdir/usr/bin/nocturne"
 
@@ -37,6 +53,29 @@ Categories=Audio;AudioVideo;Player;
 EOF
 
   install -Dm644 resource/img/icon.png "$pkgdir/usr/share/pixmaps/nocturne.png"
-  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  # No LICENSE file in the tarball — embed a minimal MIT notice
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/licenses/$pkgname/LICENSE" << 'LIC'
+MIT License
+
+Copyright (c) 2026 sm-alfariz
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+LIC
+  [ -f README.md ] && install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 }
