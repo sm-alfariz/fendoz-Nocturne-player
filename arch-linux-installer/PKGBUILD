@@ -42,6 +42,7 @@ JSON
   python -m venv _buildenv
   _buildenv/bin/pip install --quiet --no-input \
     pyinstaller \
+    python-vlc \
     pyside6 \
     pyside6-fluent-widgets[full] \
     pysidesix-frameless-window \

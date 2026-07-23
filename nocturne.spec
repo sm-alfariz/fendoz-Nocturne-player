@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for Nocturne Player — standalone Linux binary."""
 
-import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 block_cipher = None
-
 ROOT = Path(".").resolve()
+
+# Collect everything from qfluentwidgets (Qt resources, QSS, icons)
+qf_datas, qf_binaries, qf_hidden = collect_all("qfluentwidgets")
 
 a = Analysis(
     ["nocturne/__main__.py"],
@@ -15,7 +17,7 @@ a = Analysis(
     datas=[
         (str(ROOT / "resource"), "resource"),
         (str(ROOT / "config"), "config"),
-    ],
+    ] + qf_datas,
     hiddenimports=[
         "vlc",
         "numpy",
@@ -39,16 +41,7 @@ a = Analysis(
         "h2",
         "hpack",
         "hyperframe",
-        "qfluentwidgets",
-        "PySide6",
-        "PySide6.QtCore",
-        "PySide6.QtGui",
-        "PySide6.QtWidgets",
-        "PySide6.QtNetwork",
-        "PySide6.QtMultimedia",
-        "PySide6.QtSvg",
-        "PySide6.QtSvgWidgets",
-    ],
+    ] + qf_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
