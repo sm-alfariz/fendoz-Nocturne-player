@@ -21,15 +21,15 @@ class TopBar(QWidget):
         self.setFixedHeight(52)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 4, 12, 0)
+        layout.setContentsMargins(8, 4, 12, 0)
         layout.setSpacing(12)
 
         logo_row = QHBoxLayout()
         logo_row.setSpacing(5)
         logo_icon = QLabel()
-        logo_icon.setFixedSize(40, 40)
+        logo_icon.setFixedSize(32, 32)
         logo_icon.setPixmap(
-            QIcon(os.path.join(ROOT, "resource", "img", "icon.png")).pixmap(40, 40)
+            QIcon(os.path.join(ROOT, "resource", "img", "icon.png")).pixmap(32, 32)
         )
         logo_row.addWidget(logo_icon)
         logo_text = QLabel("Nocturne")
@@ -56,7 +56,7 @@ class TopBar(QWidget):
 
         self.miniplayer_btn = QPushButton()
         self.miniplayer_btn.setIcon(FIF.MINIMIZE.icon(color=Color.TEXT_DIM))
-        self.miniplayer_btn.setFixedSize(36, 36)
+        self.miniplayer_btn.setFixedSize(32, 32)
         self.miniplayer_btn.setFlat(True)
         self.miniplayer_btn.setToolTip("Switch to Miniplayer")
         self._style_icon_btn(self.miniplayer_btn)
@@ -64,14 +64,14 @@ class TopBar(QWidget):
 
         self.settings_btn = QPushButton()
         self.settings_btn.setIcon(FIF.SETTING.icon(color=Color.TEXT_DIM))
-        self.settings_btn.setFixedSize(36, 36)
+        self.settings_btn.setFixedSize(32, 32)
         self.settings_btn.setFlat(True)
         self.settings_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
         layout.addWidget(self.settings_btn)
 
         self.sc_btn = QPushButton()
         self.sc_btn.setIcon(FIF.CLOUD.icon())
-        self.sc_btn.setFixedSize(36, 36)
+        self.sc_btn.setFixedSize(32, 32)
         self.sc_btn.setFlat(True)
         self.sc_btn.setStyleSheet(self.miniplayer_btn.styleSheet())
         self.sc_btn.setToolTip("Search SoundCloud")

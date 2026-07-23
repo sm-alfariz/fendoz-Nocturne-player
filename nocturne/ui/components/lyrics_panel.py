@@ -57,7 +57,6 @@ class _SyncBadge(QLabel):
 def _build_lyrics_header() -> QWidget:
     """Build the lyrics panel header with 'Lirik' title and SYNCED badge."""
     h = QWidget()
-    h.setStyleSheet(f"background:rgba(15,23,42,0.35);border-bottom:1px solid {Color.BORDER};")
     hl = QHBoxLayout(h)
     hl.setContentsMargins(22, 20, 22, 14)
     title = QLabel("Lirik")
