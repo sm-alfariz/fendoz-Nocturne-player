@@ -73,6 +73,8 @@ class ArtistsView(QWidget):
         self._filter_text = text
         self.load()
 
+    # TODO
+    # seharusnya menggunaka artist_controller.py
     def load(self, rows: list[tuple[str, int]] | None = None) -> None:
         clear_flow_layout(self.grid_layout)
         self._loading_label.hide()
@@ -80,7 +82,7 @@ class ArtistsView(QWidget):
         if rows is None:
             conn = get_connection()
             query = (
-                "SELECT artist, COUNT(*) as cnt FROM tracks "
+                "SELECT artist, COUNT(id) as cnt FROM tracks "
                 "WHERE artist IS NOT NULL AND artist != '' "
             )
             params: list[str] = []
