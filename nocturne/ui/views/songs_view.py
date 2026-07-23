@@ -189,6 +189,8 @@ class SongsView(QWidget):
         remove_action.triggered.connect(lambda: self._remove_track(track))
         menu.exec(self.table.viewport().mapToGlobal(pos))
 
+    # TODO
+    # seharusnya di akses dari songs_controller
     def _remove_track(self, track: Track) -> None:
         from qfluentwidgets import MessageBox
         box = MessageBox(
