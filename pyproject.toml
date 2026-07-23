@@ -24,7 +24,7 @@ dependencies = [
 dev = [
     "pyside6-mcp",
 ]
-test = ["pytest>=8", "pytest-cov>=7.1.0", "pytest-qt>=4"]
+test = ["pytest>=8", "pytest-cov>=7.1.0"]
 
 [tool.uv.sources]
 pyside6-mcp = { git = "https://github.com/com55/pyside6-mcp" }
