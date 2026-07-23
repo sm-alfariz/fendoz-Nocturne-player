@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y libegl1
+
       - name: Install dependencies
         run: uv sync --group test
 
@@ -28,3 +31,5 @@ jobs:
 
       - name: Test
         run: uv run pytest tests/ -v
+        env:
+          QT_QPA_PLATFORM: offscreen
