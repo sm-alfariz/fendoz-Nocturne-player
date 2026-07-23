@@ -95,7 +95,6 @@ class Config(QConfig):
     blurRadius = RangeConfigItem("Material", "AcrylicBlurRadius", 15, RangeValidator(0, 40))
 
     # Custom settings
-    autoSaveNote = ConfigItem("Custom", "AutoSaveNote", False, BoolValidator())
     confirmExit = ConfigItem("Custom", "ConfirmExit", False, BoolValidator())
     closeToTray = ConfigItem("Custom", "CloseToTray", True, BoolValidator())
 
@@ -129,7 +128,6 @@ VERSION = __version__
 HELP_URL = "https://qfluentwidgets.com"
 REPO_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets"
 EXAMPLE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/PySide6/examples"
-FEEDBACK_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/issues"
 RELEASE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/releases/latest"
 ZH_SUPPORT_URL = "https://qfluentwidgets.com/zh/price/"
 EN_SUPPORT_URL = "https://qfluentwidgets.com/price/"

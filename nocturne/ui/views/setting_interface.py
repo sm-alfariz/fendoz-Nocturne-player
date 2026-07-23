@@ -16,7 +16,6 @@ from qfluentwidgets import (
     ComboBoxSettingCard,
     CustomColorSettingCard,
     ExpandLayout,
-    HyperlinkCard,
     InfoBar,
     OptionsSettingCard,
     PrimaryPushSettingCard,
@@ -32,7 +31,7 @@ from qfluentwidgets import FluentIcon as FIF
 
 from nocturne.common.signal_bus import signalBus
 from nocturne.common.style_sheet import StyleSheet
-from nocturne.config.config import FEEDBACK_URL, HELP_URL, VERSION, YEAR, cfg, isWin11
+from nocturne.config.config import VERSION, YEAR, cfg, isWin11
 from nocturne.ui.controllers.settings_controller import SettingsController
 
 
@@ -176,21 +175,8 @@ class SettingInterface(ScrollArea):
         )
 
         self.aboutGroup = SettingCardGroup(self.tr("About"), self.scrollWidget)
-        self.helpCard = HyperlinkCard(
-            HELP_URL,
-            self.tr("Open help page"),
-            FIF.HELP,
-            self.tr("Help"),
-            self.tr("Discover new features and learn useful tips about Nocturne"),
-            self.aboutGroup,
-        )
-        self.feedbackCard = PrimaryPushSettingCard(
-            self.tr("Provide feedback"),
-            FIF.FEEDBACK,
-            self.tr("Provide feedback"),
-            self.tr("Help us improve Nocturne by providing feedback"),
-            self.aboutGroup,
-        )
+
+
         self.aboutCard = PrimaryPushSettingCard(
             self.tr("Check update"),
             FIF.INFO,
@@ -200,13 +186,6 @@ class SettingInterface(ScrollArea):
             self.aboutGroup,
         )
 
-        self.autoSaveSetting = SwitchSettingCard(
-            FIF.SAVE,
-            self.tr("Auto save note"),
-            self.tr("Automatically save notes when changed"),
-            cfg.autoSaveNote,
-            self.personalGroup,
-        )
         self.confirmExitSetting = SwitchSettingCard(
             FIF.CLOSE,
             self.tr("Confirm exit"),
@@ -258,7 +237,6 @@ class SettingInterface(ScrollArea):
         self.personalGroup.addSettingCard(self.themeColorCard)
         self.personalGroup.addSettingCard(self.zoomCard)
         self.personalGroup.addSettingCard(self.languageCard)
-        self.personalGroup.addSettingCard(self.autoSaveSetting)
         self.personalGroup.addSettingCard(self.confirmExitSetting)
         self.personalGroup.addSettingCard(self.closeToTraySetting)
         self.materialGroup.addSettingCard(self.blurRadiusCard)
@@ -269,8 +247,6 @@ class SettingInterface(ScrollArea):
         self.onlineGroup.addSettingCard(self.cacheOfflineCard)
         self.onlineGroup.addSettingCard(self.lyricsOnlineCard)
         self.accessGroup.addSettingCard(self.reduceMotionCard)
-        self.aboutGroup.addSettingCard(self.helpCard)
-        self.aboutGroup.addSettingCard(self.feedbackCard)
         self.aboutGroup.addSettingCard(self.crashLogCard)
         self.aboutGroup.addSettingCard(self.aboutCard)
 
@@ -297,9 +273,7 @@ class SettingInterface(ScrollArea):
         cfg.themeChanged.connect(setTheme)
         self.themeColorCard.colorChanged.connect(lambda c: setThemeColor(c))
         self.micaCard.checkedChanged.connect(signalBus.micaEnableChanged)
-        self.feedbackCard.clicked.connect(
-            lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
-        )
+
         self.reduceMotionCard.checkedChanged.connect(signalBus.reduce_motion_changed)
         self.scanCard.clicked.connect(signalBus.scan_started.emit)
 
