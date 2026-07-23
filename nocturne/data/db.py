@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS play_history (
 INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_tracks_artist_album ON tracks(artist, album_id);",
     "CREATE INDEX IF NOT EXISTS idx_tracks_file_mtime ON tracks(file_mtime);",
+    "CREATE INDEX IF NOT EXISTS idx_tracks_title ON tracks(title);",
+    "CREATE INDEX IF NOT EXISTS idx_tracks_artist_title ON tracks(artist, title);",
+    "CREATE INDEX IF NOT EXISTS idx_tracks_added_at ON tracks(added_at);",
     "CREATE INDEX IF NOT EXISTS idx_playlist_items_order ON playlist_items(playlist_id, position);",
 ]
 
