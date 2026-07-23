@@ -4,6 +4,8 @@
   <img src="resource/img/icon.png" alt="APP MAIN LOGO">
 </div>
 
+[![CI](https://github.com/sm-alfariz/fendoz-Nocturne-player/actions/workflows/ci.yml/badge.svg)](https://github.com/sm-alfariz/fendoz-Nocturne-player/actions/workflows/ci.yml)
+
 ## 📷️ Screen Shoot
 | Screen Shoot | Desc |
 | --- | --- |
