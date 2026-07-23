@@ -258,6 +258,7 @@ class TagEditorDialog(QDialog):
             "Select Cover Image",
             "",
             "Images (*.png *.jpg *.jpeg *.webp *.bmp *.gif)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if not path:
             return

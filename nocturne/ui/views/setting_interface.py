@@ -305,7 +305,8 @@ class SettingInterface(ScrollArea):
 
     def _add_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Music Folder"
+            self, "Select Music Folder",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if folder:
             self.folderCard.setContent(

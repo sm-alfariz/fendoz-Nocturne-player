@@ -180,7 +180,8 @@ class PlaylistDetail(QWidget):
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getSaveFileName(
             self, "Export .m3u", f"{self.title_label.text()}.m3u",
-            "Playlist files (*.m3u *.m3u8)"
+            "Playlist files (*.m3u *.m3u8)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if not path:
             return
@@ -211,7 +212,8 @@ class PlaylistDetail(QWidget):
             return
         from PySide6.QtWidgets import QFileDialog
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "Add Tracks", "", "Audio files (*.mp3 *.flac *.wav *.ogg *.m4a)"
+            self, "Add Tracks", "", "Audio files (*.mp3 *.flac *.wav *.ogg *.m4a)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if not paths:
             return
@@ -349,7 +351,8 @@ class PlaylistView(QWidget):
     def _import_m3u(self) -> None:
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import .m3u", "", "Playlist files (*.m3u *.m3u8)"
+            self, "Import .m3u", "", "Playlist files (*.m3u *.m3u8)",
+            options=QFileDialog.DontUseNativeDialog,
         )
         if not path:
             return
