@@ -7,7 +7,9 @@ Single input auto-detects URL vs search query.
 
 from __future__ import annotations
 
+import logging
 import re
+import threading
 from urllib.request import Request, urlopen
 
 from PySide6.QtCore import QThread, QTimer, Qt, Signal
@@ -36,6 +38,8 @@ from nocturne.ui.common import fmt_ms
 from nocturne.ui.icon_utils import pixmap_scaled
 from nocturne.ui.theme.tokens import Color
 
+logger = logging.getLogger(__name__)
+
 _URL_RE = re.compile(r"https?://.*soundcloud\.com/")
 _ARTWORK_CACHE: dict[str, QPixmap] = {}
 
@@ -44,7 +48,11 @@ _ARTWORK_CACHE: dict[str, QPixmap] = {}
 
 
 class SearchWorker(QThread):
-    """Background search via SoundCloud API."""
+    """Background search via SoundCloud API.
+
+    Emits ``finished(list)`` with track dicts, each carrying an optional
+    ``_artwork_bytes`` key with raw image data for main-thread QPixmap creation.
+    """
 
     finished = Signal(list)  # list[dict]
     error = Signal(str)
@@ -52,27 +60,60 @@ class SearchWorker(QThread):
     def __init__(self, query: str, parent=None):
         super().__init__(parent)
         self._query = query
+        self._stop = threading.Event()
+
+    def request_stop(self) -> None:
+        """Cooperative stop — checked before each network call."""
+        self._stop.set()
+
+    def _is_cancelled(self) -> bool:
+        return self._stop.is_set()
 
     def run(self) -> None:
         try:
             results = search(self._query, limit=20)
-            # Pre-fetch artwork thumbnails in background
+            if self._is_cancelled():
+                return
+            # Pre-fetch artwork raw bytes (QPixmap created on main thread)
             for track in results:
+                if self._is_cancelled():
+                    return
                 url = track.get("artwork_url", "")
                 if url and url not in _ARTWORK_CACHE:
                     try:
                         url_lg = url.replace("-large", "-t300x300")
                         req = Request(url_lg, headers={"User-Agent": "Mozilla/5.0"})
                         with urlopen(req, timeout=8) as resp:
-                            data = resp.read()
-                            px = QPixmap()
-                            if px.loadFromData(data):
-                                _ARTWORK_CACHE[url] = px.scaled(
-                                    40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation
-                                )
+                            track["_artwork_bytes"] = resp.read()
                     except Exception:
-                        pass
-            self.finished.emit(results)
+                        logger.debug("Artwork fetch failed for %s", url)
+            if not self._is_cancelled():
+                self.finished.emit(results)
+        except Exception as e:
+            logger.warning("SearchWorker error: %s", e)
+            self.error.emit(str(e))
+
+
+class StreamWorker(QThread):
+    """Background thread: resolve stream URLs for selected tracks."""
+
+    finished = Signal(list)  # list[dict] with stream_url populated
+    error = Signal(str)
+
+    def __init__(self, tracks: list[dict], parent=None):
+        super().__init__(parent)
+        self._tracks = tracks
+
+    def run(self) -> None:
+        try:
+            for track in self._tracks:
+                if not track.get("stream_url") and track.get("source_url"):
+                    try:
+                        track["stream_url"] = get_stream(track["source_url"])
+                    except Exception as e:
+                        logger.warning("Stream resolve failed for %s: %s",
+                                       track.get("title"), e)
+            self.finished.emit(self._tracks)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -224,6 +265,7 @@ class SoundCloudDialog(QDialog):
 
         # Results list
         self.results_list = QListWidget()
+        self.results_list.itemDoubleClicked.connect(self._on_action)
         layout.addWidget(self.results_list, 1)
 
         # Buttons
@@ -283,6 +325,8 @@ class SoundCloudDialog(QDialog):
     def _start_worker(self, worker: QThread) -> None:
         if isinstance(worker, SearchWorker):
             worker.finished.connect(self._on_search_results)
+        elif isinstance(worker, StreamWorker):
+            pass  # finished already connected in _on_action
         else:
             worker.finished.connect(self._on_resolved)
         worker.error.connect(self._on_error)
@@ -298,6 +342,19 @@ class SoundCloudDialog(QDialog):
     # ── Results ────────────────────────────────────────────────────
 
     def _on_search_results(self, tracks: list[dict]) -> None:
+        # Create QPixmap on the main thread (Qt requirement)
+        for track in tracks:
+            raw = track.pop("_artwork_bytes", None)
+            url = track.get("artwork_url", "")
+            if raw and url and url not in _ARTWORK_CACHE:
+                try:
+                    px = QPixmap()
+                    if px.loadFromData(raw):
+                        _ARTWORK_CACHE[url] = px.scaled(
+                            40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                except Exception:
+                    logger.debug("QPixmap creation failed for %s", url)
         self._show_tracks(tracks, "No results found.")
 
     def _on_resolved(self, tracks: list[dict]) -> None:
@@ -330,7 +387,6 @@ class SoundCloudDialog(QDialog):
     def _on_action(self) -> None:
         selected = self.results_list.selectedItems()
         if not selected:
-            # If nothing selected, use all tracks
             selected = [
                 self.results_list.item(i)
                 for i in range(self.results_list.count())
@@ -338,22 +394,38 @@ class SoundCloudDialog(QDialog):
         tracks = [item.data(Qt.UserRole) for item in selected if item.data(Qt.UserRole)]
         if not tracks:
             return
-        # Ensure stream_url is populated
-        for track in tracks:
-            if not track.get("stream_url") and track.get("source_url"):
-                try:
-                    track["stream_url"] = get_stream(track["source_url"])
-                except Exception:
-                    pass
+        # Resolve stream URLs in background to avoid blocking the main thread
+        need_stream = [t for t in tracks if not t.get("stream_url") and t.get("source_url")]
+        if need_stream:
+            self.action_btn.setEnabled(False)
+            self.status.setText("Resolving stream…")
+            self.progress_bar.show()
+            worker = StreamWorker(tracks, self)
+            worker.finished.connect(self._on_streams_ready)
+            worker.error.connect(self._on_stream_error)
+            self._start_worker(worker)
+        else:
+            self._tracks = tracks
+            self.accept()
+
+    def _on_streams_ready(self, tracks: list[dict]) -> None:
         self._tracks = tracks
         self.accept()
+
+    def _on_stream_error(self, msg: str) -> None:
+        self.progress_bar.hide()
+        self.action_btn.setEnabled(True)
+        self.status.setText(f"Stream error: {msg}")
+        InfoBar.error("Stream error", msg, parent=self)
 
     # ── Cleanup ────────────────────────────────────────────────────
 
     def closeEvent(self, event) -> None:
         for w in self._workers:
+            if hasattr(w, "request_stop"):
+                w.request_stop()
             w.quit()
-            w.wait(2000)
+            w.wait(500)
         super().closeEvent(event)
 
     @property
