@@ -1,71 +1,70 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""
-PyInstaller spec for Nocturne Music Player.
-
-Build:  pyinstaller nocturne.spec
-"""
+"""PyInstaller spec for Nocturne Player — standalone Linux binary."""
 
 import sys
 from pathlib import Path
 
 block_cipher = None
 
-# ── VLC native libraries ──────────────────────────────────────────
-VLC_LIBS_SRC = '/usr/lib'
-vlc_binaries = [
-    (f'{VLC_LIBS_SRC}/libvlc.so.5', '.'),
-    (f'{VLC_LIBS_SRC}/libvlccore.so.9', '.'),
-]
-
-# VLC plugins — collect recursively
-import os
-_vlc_plugins = []
-for _root, _dirs, _files in os.walk('/usr/lib/vlc'):
-    for _f in _files:
-        _src = os.path.join(_root, _f)
-        _dst = os.path.join('vlc_plugins', os.path.relpath(_root, '/usr/lib/vlc'), _f)
-        _vlc_plugins.append((_src, _dst))
+ROOT = Path(".").resolve()
 
 a = Analysis(
-    ['nocturne/__main__.py'],
+    ["nocturne/__main__.py"],
     pathex=[],
-    binaries=vlc_binaries,
+    binaries=[],
     datas=[
-        ('resource/img/*', 'resource/img'),
-        ('resource/styles/*', 'resource/styles'),
-        ('config/config.json', 'config'),
-    ] + _vlc_plugins,
+        (str(ROOT / "resource"), "resource"),
+        (str(ROOT / "config"), "config"),
+    ],
     hiddenimports=[
-        'PySide6.QtCore',
-        'PySide6.QtGui',
-        'PySide6.QtWidgets',
-        'qfluentwidgets',
-        'vlc',
-        'mutagen',
-        'numpy',
-        'httpx',
-        'sqlite3',
+        "vlc",
+        "numpy",
+        "scipy._lib",
+        "scipy",
+        "mutagen",
+        "mutagen.id3",
+        "mutagen.mp3",
+        "mutagen.flac",
+        "mutagen.oggvorbis",
+        "mutagen.wave",
+        "mutagen.mp4",
+        "mutagen.asf",
+        "mutagen.trueaudio",
+        "mutagen.wavpack",
+        "mutagen.dsf",
+        "sounddevice",
+        "darkdetect",
+        "colorthief",
+        "httpx",
+        "h2",
+        "hpack",
+        "hyperframe",
+        "qfluentwidgets",
+        "PySide6",
+        "PySide6.QtCore",
+        "PySide6.QtGui",
+        "PySide6.QtWidgets",
+        "PySide6.QtNetwork",
+        "PySide6.QtMultimedia",
+        "PySide6.QtSvg",
+        "PySide6.QtSvgWidgets",
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, cipher=block_cipher)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
-    name='nocturne',
+    name="nocturne",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -79,16 +78,3 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
-
-# macOS .app bundle
-if sys.platform == 'darwin':
-    app = BUNDLE(
-        exe,
-        name='Nocturne.app',
-        icon='resource/img/icon.png',
-        bundle_identifier='com.fendoz.nocturne',
-        info_plist={
-            'NSHighResolutionCapable': 'True',
-            'CFBundleShortVersionString': '0.1.0',
-        },
-    )

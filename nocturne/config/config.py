@@ -118,7 +118,10 @@ class Config(QConfig):
     lyricsOnline = ConfigItem("Online", "LyricsOnline", False, BoolValidator())
 
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if getattr(sys, 'frozen', False):
+    ROOT = sys._MEIPASS
+else:
+    ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
 YEAR = 2026
 AUTHOR = "FenDoZ"
